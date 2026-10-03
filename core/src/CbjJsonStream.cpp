@@ -3,6 +3,8 @@
 #include "rapidjson/reader.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stream.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/ostreamwrapper.h"
 #include <fstream>
 #include <string>
 
