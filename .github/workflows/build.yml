@@ -25,15 +25,48 @@ jobs:
       matrix:
         include:
           - platform: Android
+            variant: android-arm64-v8a
             os: ubuntu-24.04
             generator: Ninja
-            triplet: android-arm64
+            triplet: android-arm64-v8a
+            android_abi: arm64-v8a
             cmake_extra: >-
               -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
               -DANDROID_ABI=arm64-v8a
               -DANDROID_PLATFORM=android-24
               -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-android-arm64.tgz
+          - platform: Android
+            variant: android-armeabi-v7a
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-armeabi-v7a
+            android_abi: armeabi-v7a
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=armeabi-v7a
+              -DANDROID_PLATFORM=android-24
+          - platform: Android
+            variant: android-x86
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-x86
+            android_abi: x86
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=x86
+              -DANDROID_PLATFORM=android-24
+          - platform: Android
+            variant: android-x86_64
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-x86_64
+            android_abi: x86_64
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=x86_64
+              -DANDROID_PLATFORM=android-24
           - platform: iOS
+            variant: ios-arm64
             os: macos-14
             generator: Ninja
             triplet: ios-arm64
@@ -41,25 +74,77 @@ jobs:
               -DCMAKE_SYSTEM_NAME=iOS
               -DCMAKE_OSX_SYSROOT=iphoneos
               -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
               -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-device-arm64.tgz
-          - platform: MacCatalyst
+          - platform: iOS
+            variant: iossimulator-arm64
             os: macos-14
             generator: Ninja
-            triplet: catalyst-arm64
+            triplet: iossimulator-arm64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=iphonesimulator
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+          - platform: iOS
+            variant: iossimulator-x64
+            os: macos-14
+            generator: Ninja
+            triplet: iossimulator-x64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=iphonesimulator
+              -DCMAKE_OSX_ARCHITECTURES=x86_64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+          - platform: MacCatalyst
+            variant: maccatalyst-arm64
+            os: macos-14
+            generator: Ninja
+            triplet: maccatalyst-arm64
             cmake_extra: >-
               -DCMAKE_SYSTEM_NAME=iOS
               -DCMAKE_OSX_SYSROOT=macosx
               -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
               -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
               -DCBJ_IOS_CATALYST=ON
               -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-catalyst-arm64.tgz
+          - platform: MacCatalyst
+            variant: maccatalyst-x64
+            os: macos-14
+            generator: Ninja
+            triplet: maccatalyst-x64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=macosx
+              -DCMAKE_OSX_ARCHITECTURES=x86_64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+              -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
+              -DCBJ_IOS_CATALYST=ON
           - platform: Windows
+            variant: windows-arm64
+            os: windows-2025
+            generator: Ninja
+            triplet: windows-arm64
+            cmake_extra: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_SYSTEM_PROCESSOR=ARM64
+              -DCMAKE_C_COMPILER=clang-cl
+              -DCMAKE_CXX_COMPILER=clang-cl
+              -DCMAKE_C_FLAGS=--target=arm64-pc-windows-msvc
+              -DCMAKE_CXX_FLAGS=--target=arm64-pc-windows-msvc
+          - platform: Windows
+            variant: windows-x64
             os: windows-2025
             generator: Ninja
             triplet: windows-x64
             cmake_extra: >-
               -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_PDFIUM_URL=
+              -DCMAKE_C_FLAGS=
+              -DCMAKE_CXX_FLAGS=
               -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz
+
 
     runs-on: ${{ matrix.os }}
 
