@@ -4,6 +4,15 @@ set(CORE_SOURCES
     src/StringImageHelper.cpp
     vendor/miniz/miniz.c
 )
+
+# CI generates the appropriate SWIG wrapper before CMake configure.
+if(DEFINED CBJ_CSHARP_SWIG_WRAPPER AND EXISTS "${CBJ_CSHARP_SWIG_WRAPPER}")
+    list(APPEND CORE_SOURCES "${CBJ_CSHARP_SWIG_WRAPPER}")
+endif()
+if(DEFINED CBJ_JAVA_SWIG_WRAPPER AND EXISTS "${CBJ_JAVA_SWIG_WRAPPER}")
+    list(APPEND CORE_SOURCES "${CBJ_JAVA_SWIG_WRAPPER}")
+endif()
+
 if(APPLE)
     # Apple platforms must consume a static archive in App Store applications.
     add_library(CbjzCore STATIC ${CORE_SOURCES})
