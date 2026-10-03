@@ -1,43 +1,108 @@
 set(CORE_SOURCES
     src/Cbj.cpp
+    src/CbjBuilder.cpp
+    src/CbjLog.cpp
+    src/CbjJsonStream.cpp
+    src/StringImageHelper.cpp
     vendor/miniz/miniz.c
 )
 
-add_library(CbjzCore SHARED ${CORE_SOURCES})
+if(WIN32 OR APPLE)
+    add_library(CbjCore STATIC ${CORE_SOURCES})
+else()
+    add_library(CbjCore SHARED ${CORE_SOURCES})
+endif()
 
-# Dizer ao compilador onde encontrar os headers (arquivos .hpp / .h)
-target_include_directories(CbjzCore PUBLIC
+set_target_properties(CbjCore PROPERTIES OUTPUT_NAME cbz)
+if(WIN32)
+    set_target_properties(CbjCore PROPERTIES PREFIX "")
+endif()
+if(MSVC)
+    target_compile_options(CbjCore PRIVATE /EHsc)
+endif()
+
+target_include_directories(CbjCore PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+target_include_directories(CbjCore PRIVATE vendor)
+target_link_libraries(CbjCore PRIVATE unarr)
 
-# Adicionar a pasta vendor aos includes (para acharmos json.hpp e miniz.h)
-target_include_directories(CbjzCore PRIVATE
-    vendor/json
-    vendor/miniz
-)
-
-# Linkar as bibliotecas baixadas via FetchContent ao nosso Core
-target_link_libraries(CbjzCore PRIVATE unarr)
-
-# =========================================================
-# Lógica para baixar o PDFium pré-compilado dinamicamente
-# dependendo do Sistema Operacional (Windows, Mac ou Linux)
-# =========================================================
-if(WIN32)
-    set(PDFIUM_URL "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-windows-x64.tgz")
-elseif(APPLE)
-    set(PDFIUM_URL "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-mac-arm64.tgz") # Ajuste arm64/x64 se necessário
-else()
-    set(PDFIUM_URL "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-linux-x64.tgz")
-endif()
+# RapidJSON and Logfault are vendored under core/vendor.
+include(FetchContent)
 
 FetchContent_Declare(
-    pdfium
-    URL ${PDFIUM_URL}
+    mupdf
+    GIT_REPOSITORY https://github.com/ArtifexSoftware/mupdf.git
+    GIT_TAG 1.28.5
+    GIT_SHALLOW TRUE
+    GIT_SUBMODULES_RECURSE TRUE
 )
-FetchContent_MakeAvailable(pdfium)
+FetchContent_MakeAvailable(mupdf)
 
-target_include_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/include)
-target_link_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/lib)
-target_link_libraries(CbjzCore PRIVATE pdfium)
+set(MUPDF_BUILD_DIR "${mupdf_BINARY_DIR}/build/release")
+if(WIN32)
+    # MuPDF's official Visual Studio solution produces static .lib files.
+    find_program(MUPDF_MSBUILD_EXECUTABLE
+        NAMES MSBuild.exe msbuild.exe
+        HINTS
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin"
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin"
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin"
+    )
+    if(NOT MUPDF_MSBUILD_EXECUTABLE)
+        message(FATAL_ERROR "MSBuild is required to build the static MuPDF Windows library.")
+    endif()
+
+    if(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+        set(MUPDF_VS_PLATFORM "ARM64")
+    elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+        set(MUPDF_VS_PLATFORM "Win32")
+    else()
+        set(MUPDF_VS_PLATFORM "x64")
+    endif()
+    set(MUPDF_WIN_LIB_DIR "${mupdf_SOURCE_DIR}/platform/win32/${MUPDF_VS_PLATFORM}/Release")
+    add_custom_target(cbj_mupdf_build
+        COMMAND "${MUPDF_MSBUILD_EXECUTABLE}" "${mupdf_SOURCE_DIR}/platform/win32/mupdf.sln"
+                /m: /p:Configuration=Release /p:Platform=${MUPDF_VS_PLATFORM}
+                /t:libmupdf
+        BYPRODUCTS
+            "${MUPDF_WIN_LIB_DIR}/libmupdf.lib"
+            "${MUPDF_WIN_LIB_DIR}/libthirdparty.lib"
+        VERBATIM)
+    add_dependencies(CbjCore cbj_mupdf_build)
+    target_include_directories(CbjCore PRIVATE "${mupdf_SOURCE_DIR}/include")
+    target_link_libraries(CbjCore PRIVATE
+        "${MUPDF_WIN_LIB_DIR}/libmupdf.lib"
+        "${MUPDF_WIN_LIB_DIR}/libthirdparty.lib"
+    )
+elseif(UNIX OR APPLE)
+    add_custom_target(cbj_mupdf_build
+        COMMAND make -C "${mupdf_SOURCE_DIR}" build=release HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
+        BYPRODUCTS "${MUPDF_BUILD_DIR}/libmupdf.a" "${MUPDF_BUILD_DIR}/libmupdf-third.a"
+        VERBATIM)
+    add_dependencies(CbjCore cbj_mupdf_build)
+    target_include_directories(CbjCore PRIVATE "${mupdf_SOURCE_DIR}/include")
+    target_link_libraries(CbjCore PRIVATE
+        "${MUPDF_BUILD_DIR}/libmupdf.a"
+        "${MUPDF_BUILD_DIR}/libmupdf-third.a"
+    )
+else()
+    message(FATAL_ERROR "Unsupported platform for MuPDF source build.")
+endif()
+
+# MuPDF may include GLX headers on Unix desktop; expose the system GLX include
+# directory only where GLX is actually part of the platform.
+if(UNIX AND NOT APPLE AND NOT ANDROID)
+    find_path(CBJ_GLX_INCLUDE_DIR GL/glx.h)
+    if(CBJ_GLX_INCLUDE_DIR)
+        target_include_directories(CbjCore PRIVATE "${CBJ_GLX_INCLUDE_DIR}")
+    endif()
+endif()
+
+if(ANDROID)
+    target_link_options(CbjCore PRIVATE
+        "-Wl,-z,max-page-size=16384"
+        "-Wl,-z,common-page-size=16384"
+    )
+endif()

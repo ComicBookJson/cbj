@@ -1,0 +1,443 @@
+name: Build CbjzCore
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbj-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Android
+            variant: android-arm64-v8a
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-arm64-v8a
+            android_abi: arm64-v8a
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=arm64-v8a
+              -DANDROID_PLATFORM=android-24
+          - platform: Android
+            variant: android-armeabi-v7a
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-armeabi-v7a
+            android_abi: armeabi-v7a
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=armeabi-v7a
+              -DANDROID_PLATFORM=android-24
+          - platform: Android
+            variant: android-x86
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-x86
+            android_abi: x86
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=x86
+              -DANDROID_PLATFORM=android-24
+          - platform: Android
+            variant: android-x86_64
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-x86_64
+            android_abi: x86_64
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=x86_64
+              -DANDROID_PLATFORM=android-24
+          - platform: iOS
+            variant: ios-arm64
+            os: macos-14
+            generator: Ninja
+            triplet: ios-arm64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=iphoneos
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+          - platform: iOS
+            variant: iossimulator-arm64
+            os: macos-14
+            generator: Ninja
+            triplet: iossimulator-arm64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=iphonesimulator
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+          - platform: iOS
+            variant: iossimulator-x64
+            os: macos-14
+            generator: Ninja
+            triplet: iossimulator-x64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=iphonesimulator
+              -DCMAKE_OSX_ARCHITECTURES=x86_64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+          - platform: MacCatalyst
+            variant: maccatalyst-arm64
+            os: macos-14
+            generator: Ninja
+            triplet: maccatalyst-arm64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=macosx
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+              -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
+              -DCBJ_IOS_CATALYST=ON
+          - platform: MacCatalyst
+            variant: maccatalyst-x64
+            os: macos-14
+            generator: Ninja
+            triplet: maccatalyst-x64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=macosx
+              -DCMAKE_OSX_ARCHITECTURES=x86_64
+              -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+              -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
+              -DCBJ_IOS_CATALYST=ON
+          - platform: Windows
+            variant: windows-arm64
+            os: windows-2025
+            generator: Ninja
+            triplet: windows-arm64
+            cmake_extra: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_C_COMPILER=clang-cl
+              -DCMAKE_CXX_COMPILER=clang-cl
+              -DCMAKE_C_FLAGS=--target=arm64-pc-windows-msvc
+              -DCMAKE_CXX_FLAGS="--target=arm64-pc-windows-msvc /EHsc"
+          - platform: Windows
+            variant: windows-x64
+            os: windows-2025
+            generator: Ninja
+            triplet: windows-x64
+            cmake_extra: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_C_COMPILER=clang-cl
+              -DCMAKE_CXX_COMPILER=clang-cl
+              -DCMAKE_C_FLAGS=--target=x86_64-pc-windows-msvc
+              -DCMAKE_CXX_FLAGS="--target=x86_64-pc-windows-msvc /EHsc"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        if: matrix.platform == 'Android'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: matrix.platform == 'Android'
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android NDK
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          NDK_VERSION=27.2.12479018
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "ndk;$NDK_VERSION"
+          NDK_HOME="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
+          test -x "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
+          echo "ANDROID_NDK_HOME=$NDK_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$NDK_HOME" >> "$GITHUB_ENV"
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v6
+
+      - name: Install SWIG
+        shell: bash
+        run: |
+          if command -v swig >/dev/null 2>&1; then
+            swig -version
+          elif [ "${{ matrix.platform }}" = "Windows" ]; then
+            choco install swig -y --no-progress
+          elif [ "${{ matrix.platform }}" = "iOS" ] || [ "${{ matrix.platform }}" = "MacCatalyst" ]; then
+            brew install swig
+          else
+            sudo apt-get update
+            sudo apt-get install -y swig
+          fi
+          swig -version
+
+      - name: Generate C# SWIG bindings
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "iOS" ] || [ "${{ matrix.platform }}" = "MacCatalyst" ]; then
+            CSHARP_DLLIMPORT="__Internal"
+          else
+            CSHARP_DLLIMPORT="cbz"
+          fi
+          mkdir -p build/swig/csharp
+          swig -c++ -csharp \
+            -namespace ComicBookJson.Cbj \
+            -dllimport "$CSHARP_DLLIMPORT" \
+            -outdir build/swig/csharp \
+            -o build/swig/csharp/cbj_wrap.cxx \
+            swig/cbj.i
+          test -s build/swig/csharp/cbj_wrap.cxx
+          test -n "$(find build/swig/csharp -name '*.cs' -print -quit)"
+
+      - name: Generate Java SWIG bindings
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          mkdir -p build/swig/java/src/com/comicbookjson/cbj
+          mkdir -p build/swig/java/jni
+          swig -c++ -java \
+            -package com.comicbookjson.cbj \
+            -outdir build/swig/java/src/com/comicbookjson/cbj \
+            -o build/swig/java/jni/cbj_wrap.cxx \
+            swig/cbj.i
+          test -s build/swig/java/jni/cbj_wrap.cxx
+          test -n "$(find build/swig/java/src -name '*.java' -print -quit)"
+
+      - name: Configure
+        shell: bash
+        run: |
+          SWIG_CMAKE_EXTRA="-DCBJ_CSHARP_SWIG_WRAPPER=${{ github.workspace }}/build/swig/csharp/cbj_wrap.cxx"
+          if [ "${{ matrix.platform }}" = "Android" ]; then
+            SWIG_CMAKE_EXTRA="$SWIG_CMAKE_EXTRA -DCBJ_JAVA_SWIG_WRAPPER=${{ github.workspace }}/build/swig/java/jni/cbj_wrap.cxx"
+          fi
+          cmake -S . -B build \
+            -G "${{ matrix.generator }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=17 \
+            ${{ matrix.cmake_extra }} \
+            $SWIG_CMAKE_EXTRA
+
+      - name: Build complete library
+        run: cmake --build build --config Release --parallel
+
+      - name: Validate Android ELF 16 KB alignment
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          READ_ELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          test -x "$READ_ELF"
+          echo "Program headers for build/core/libcbz.so:"
+          "$READ_ELF" -lW build/core/libcbz.so
+          "$READ_ELF" -lW build/core/libcbz.so | awk '
+            $1 == "LOAD" {
+              if ($NF != "0x4000") {
+                print "ERROR: LOAD segment alignment is " $NF ", expected 0x4000 (16 KB)"
+                exit 1
+              }
+            }
+          '
+
+      - name: Package library
+        shell: bash
+        run: |
+          cmake --install build --prefix "dist/${{ matrix.triplet }}" || true
+          if [ "${{ matrix.platform }}" = "Android" ]; then
+            NDK_LIB="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib"
+            case "${{ matrix.android_abi }}" in
+              arm64-v8a) CXX_SHARED="$NDK_LIB/aarch64-linux-android/libc++_shared.so" ;;
+              armeabi-v7a) CXX_SHARED="$NDK_LIB/arm-linux-androideabi/libc++_shared.so" ;;
+              x86) CXX_SHARED="$NDK_LIB/i686-linux-android/libc++_shared.so" ;;
+              x86_64) CXX_SHARED="$NDK_LIB/x86_64-linux-android/libc++_shared.so" ;;
+            esac
+            test -f "$CXX_SHARED"
+            mkdir -p "build/android-runtime/lib/${{ matrix.android_abi }}"
+            cp "$CXX_SHARED" "build/android-runtime/lib/${{ matrix.android_abi }}/libc++_shared.so"
+          fi
+          tar -C build -czf "cbjzcore-${{ matrix.triplet }}.tar.gz" .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbjzcore-${{ matrix.triplet }}
+          path: cbjzcore-${{ matrix.triplet }}.tar.gz
+          if-no-files-found: error
+
+      - name: Upload C# SWIG bindings
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-csharp-bindings-${{ matrix.triplet }}
+          path: build/swig/csharp/*.cs
+          if-no-files-found: error
+
+      - name: Prepare Android native AAR inputs
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          mkdir -p "build/android-aar-native/lib/${{ matrix.android_abi }}"
+          cp "build/core/libcbz.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libcbz.so"
+          cp "build/android-runtime/lib/${{ matrix.android_abi }}/libc++_shared.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libc++_shared.so"
+
+      - name: Upload Java SWIG bindings
+        if: matrix.platform == 'Android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-java-bindings-${{ matrix.triplet }}
+          path: build/swig/java/src
+          if-no-files-found: error
+
+      - name: Upload Android native AAR inputs
+        if: matrix.platform == 'Android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-android-native-${{ matrix.android_abi }}
+          path: build/android-aar-native/lib
+          if-no-files-found: error
+
+  sync-csharp-bindings:
+    name: Sync C# SWIG bindings
+    needs: build
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: cbj-bindings-sync-${{ github.event.pull_request.head.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Android C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-android-arm64-v8a
+          path: swig/maui/CbjMaui/Platforms/Android
+
+      - name: Download iOS C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-ios-arm64
+          path: swig/maui/CbjMaui/Platforms/iOS
+
+      - name: Download Mac Catalyst C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-maccatalyst-arm64
+          path: swig/maui/CbjMaui/Platforms/MacCatalyst
+
+      - name: Download Windows C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-windows-x64
+          path: swig/maui/CbjMaui/Platforms/Windows
+
+      - name: Commit C# bindings when changed
+        shell: bash
+        run: |
+          git add swig/maui/CbjMaui/Platforms/Android swig/maui/CbjMaui/Platforms/iOS swig/maui/CbjMaui/Platforms/MacCatalyst swig/maui/CbjMaui/Platforms/Windows
+          if git diff --cached --quiet -- swig/maui/CbjMaui/Platforms/Android swig/maui/CbjMaui/Platforms/iOS swig/maui/CbjMaui/Platforms/MacCatalyst swig/maui/CbjMaui/Platforms/Windows; then
+            echo "No generated C# binding changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: synchronize generated C# SWIG bindings"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+  sync-java-bindings:
+    name: Sync Java SWIG bindings and AAR
+    needs: build
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: cbj-bindings-sync-${{ github.event.pull_request.head.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Download generated Java bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-java-bindings-android-arm64-v8a
+          path: swig/java/CbjAndroid/CbjAndroid/src/main/java
+
+      - name: Download Android native libraries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cbj-android-native-*
+          path: swig/java/CbjAndroid/src/main/jniLibs
+          merge-multiple: true
+
+      - name: Generate AAR
+        working-directory: swig/java/CbjAndroid
+        shell: bash
+        run: |
+          gradle --version
+          gradle --no-daemon :CbjAndroid:assembleRelease
+          test -f CbjAndroid/build/outputs/aar/CbjAndroid-release.aar
+          cp CbjAndroid/build/outputs/aar/CbjAndroid-release.aar CbjAndroid.aar
+
+      - name: Upload generated AAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-android-aar
+          path: swig/java/CbjAndroid/CbjAndroid.aar
+          if-no-files-found: error
+
+      - name: Commit Java bindings and Gradle project when changed
+        shell: bash
+        run: |
+          git add swig/java/CbjAndroid/src swig/java/CbjAndroid/settings.gradle swig/java/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/src/main/AndroidManifest.xml swig/java/CbjAndroid/CbjAndroid/.gitignore
+          if git diff --cached --quiet -- swig/java/CbjAndroid/src swig/java/CbjAndroid/settings.gradle swig/java/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/src/main/AndroidManifest.xml swig/java/CbjAndroid/CbjAndroid/.gitignore; then
+            echo "No generated Java binding or project changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: synchronize generated Java SWIG bindings"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
