@@ -16,7 +16,6 @@
 
 %include <std_string.i>
 %include <std_vector.i>
-%include <std_optional.i>
 
 #ifdef SWIGCSHARP
 %include <attribute.i>
