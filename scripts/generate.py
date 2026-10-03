@@ -66,6 +66,8 @@ def generate_class(name, schema_obj):
         elif type_info["base"] == "std::string" and not type_info["is_opt"]:
             default_val = ' = ""'
             
+        description = prop_details.get("description", "Schema property: " + prop_name)
+        lines.append(f"        /** {description} */")
         lines.append(f"        {type_info['full']} _{prop_name}{default_val};")
     
     lines.append("")
@@ -93,6 +95,7 @@ def generate_class(name, schema_obj):
         else:
             lines.append(f"        void Set{pascal_case_name}(const {type_info['full']}& value) {{ _{prop_name} = value; }}")
             
+        lines.append(f"        /** Gets a mutable reference to the {prop_name} schema property. */")
         lines.append(f"        {type_info['full']}& Mutable{pascal_case_name}() {{ return _{prop_name}; }}")
 
         lines.append("") # Linha em branco entre as propriedades
