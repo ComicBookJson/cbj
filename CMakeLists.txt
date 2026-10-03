@@ -22,6 +22,12 @@ else()
     set(BUILD_SHARED_LIBS ON CACHE BOOL "Build dependencies as shared libraries" FORCE)
 endif()
 
+# unarr must be self-contained: use its bundled bzip2/lzma/zlib implementations
+# instead of relying on platform package discovery.
+set(USE_SYSTEM_BZ2 OFF CACHE BOOL "Use bundled bzip2 in unarr" FORCE)
+set(USE_SYSTEM_LZMA OFF CACHE BOOL "Use bundled LZMA in unarr" FORCE)
+set(USE_SYSTEM_ZLIB OFF CACHE BOOL "Use bundled zlib in unarr" FORCE)
+
 # 1. Baixar o UNARR (Para CBR/RAR) na hora da compilação
 FetchContent_Declare(
     unarr
@@ -33,4 +39,6 @@ FetchContent_MakeAvailable(unarr)
 # 2. Chamar o arquivo CMake da pasta core
 add_subdirectory(core)
 
-# (Futuro: add_subdirectory(swig) para gerar os bindings C#, Java, Swift)
+# SWIG is the only dynamic SDK boundary. The wrapper consumes the native
+# CbJCore/static third-party graph and exposes it to the selected language.
+add_subdirectory(swig)
