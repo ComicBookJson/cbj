@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
-#include "CbjzSchema.hpp"
+#include "CbjSchema.hpp"
 namespace cbjz
 {
     class Cbj
