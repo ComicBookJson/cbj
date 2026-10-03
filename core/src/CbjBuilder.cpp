@@ -1,6 +1,10 @@
 #include "CbjBuilder.hpp"
 #include "StringImageHelper.hpp"
+#include "CbjJsonStream.hpp"
+#include "CbjLog.hpp"
+#include "miniz.h"
 #include <fstream>
+#include <filesystem>
 namespace cbj
 {
     CbjBuilder::CbjBuilder() 
@@ -122,6 +126,38 @@ namespace cbj
     
     bool CbjBuilder::Save(const std::string &p) const
     {
-
+        namespace fs = std::filesystem;
+        fs::path output(p);
+        if (output.extension() != ".cbj")
+            output.replace_extension(".cbj");
+        const fs::path json = output.string() + ".data.json.tmp";
+        const fs::path archive = output.string() + ".tmp";
+        try {
+            if (!WriteDocumentJson(json.string(), document_))
+                return false;
+            std::vector<std::streamoff> pages;
+            std::string version;
+            Metadata metadata;
+            if (!ValidateAndIndexCbjJson(json.string(), pages, version, metadata)) {
+                CbjLog::Error("builder", "generated data.json failed validation");
+                fs::remove(json);
+                return false;
+            }
+            mz_zip_archive zip{};
+            if (!mz_zip_writer_init_file(&zip, archive.string().c_str(), 0)) {
+                fs::remove(json); return false;
+            }
+            const bool added = mz_zip_writer_add_file(&zip, "data.json", json.string().c_str(), nullptr, 0, MZ_BEST_COMPRESSION);
+            const bool finalized = added && mz_zip_writer_finalize_archive(&zip);
+            mz_zip_writer_end(&zip);
+            fs::remove(json);
+            if (!finalized) { fs::remove(archive); return false; }
+            fs::remove(output);
+            fs::rename(archive, output);
+            CbjLog::Info("builder", "saved validated CBJ archive: " + output.string());
+            return true;
+        } catch (...) {
+            fs::remove(json); fs::remove(archive); return false;
+        }
     }
-}
+}\n}\n
