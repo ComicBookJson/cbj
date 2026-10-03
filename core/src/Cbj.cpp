@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <iterator>
 #include <cmath>
+#include <cstdio>
 namespace cbj
 {
     namespace
