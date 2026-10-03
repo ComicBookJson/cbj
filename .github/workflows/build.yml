@@ -202,10 +202,15 @@ jobs:
       - name: Generate C# SWIG bindings
         shell: bash
         run: |
+          if [ "${{ matrix.platform }}" = "iOS" ] || [ "${{ matrix.platform }}" = "MacCatalyst" ]; then
+            CSHARP_DLLIMPORT="__Internal"
+          else
+            CSHARP_DLLIMPORT="cbz"
+          fi
           mkdir -p build/swig/csharp
           swig -c++ -csharp \
             -namespace ComicBookJson.Cbj \
-            -dllimport cbz \
+            -dllimport "$CSHARP_DLLIMPORT" \
             -outdir build/swig/csharp \
             -o build/swig/csharp/cbj_wrap.cxx \
             swig/cbj.i
@@ -338,11 +343,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download generated C# bindings
+      - name: Download generated C# bindings for Android and Windows
         uses: actions/download-artifact@v4
         with:
           name: cbj-csharp-bindings-windows-x64
-          path: swig/maui/CbjMaui/Generated
+          path: swig/maui/CbjMaui/Generated/Native
+
+      - name: Download generated C# bindings for iOS and Mac Catalyst
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-ios-arm64
+          path: swig/maui/CbjMaui/Generated/Internal
 
       - name: Commit C# bindings when changed
         shell: bash
