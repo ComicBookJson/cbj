@@ -17,6 +17,7 @@
 %include <std_string.i>
 %include <std_vector.i>
 %include "../core/include/CbjSchema.hpp"
+%include "../core/include/CbjImportOptions.hpp"
 %include "../core/include/Cbj.hpp"
 %include "../core/include/CbjBuilder.hpp"
 %include "../core/include/StringImageHelper.hpp"
