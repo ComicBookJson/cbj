@@ -25,9 +25,9 @@ namespace cbjz
         bool ImportFromCbt(const std::string &);
         bool ImportFromPdf(const std::string &);
         bool SaveAsCbjz(const std::string &);
-        std::vector<PageElement> GetPages(int startIndex, int count);
-        std::vector<PageElement> GetPagesForView(int currentIndex, ViewMode);
-        PageElement GetPage(int index);
+        std::vector<Page> GetPages(int startIndex, int count);
+        std::vector<Page> GetPagesForView(int currentIndex, ViewMode);
+        Page GetPage(int index);
         void ClearCache();
         void SetCachePages(int);
         int GetCachePages() const;

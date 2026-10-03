@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
-namespace cbjz
+namespace cbj
 {
     static const char *A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 

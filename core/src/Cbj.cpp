@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <iterator>
 #include <cmath>
-namespace cbjz
+namespace cbj
 {
     namespace
     {
@@ -123,7 +123,7 @@ namespace cbjz
         Metadata metadata;
         std::vector<Entry> entries;
         std::vector<Loc> pages;
-        std::unordered_map<int, PageElement> cache, edited;
+        std::unordered_map<int, Page> cache, edited;
         int radius = 2;
         bool open = false, cbjz = false;
         FPDF_DOCUMENT pdf = nullptr;
@@ -190,7 +190,7 @@ namespace cbjz
             open = true;
         }
         
-        PageElement archivePage(int i)
+        Page archivePage(int i)
         {
             if (i < 0 || i >= int(entries.size()))
                 throw std::out_of_range("Page index out of range");
@@ -217,7 +217,7 @@ namespace cbjz
             }
             ar_close_archive(a);
             ar_close(s);
-            PageElement p;
+            Page p;
             p.set_page_index(i);
             p.set_page_type(i ? "Story" : "FrontCover");
             p.set_base64_image("data:" + mime(entries[i].name) + ";base64," + StringImageHelper::EncodeBase64(b));
@@ -376,7 +376,7 @@ namespace cbjz
             cbjz = open = true;
         }
         
-        PageElement cbjzPage(int i)
+        Page cbjzPage(int i)
         {
             auto e = edited.find(i);
             if (e != edited.end())
@@ -392,7 +392,7 @@ namespace cbjz
                 f.seekg(pages[i].objectBegin);
                 std::string obj(size_t(pages[i].objectEnd - pages[i].objectBegin), '\0');
                 f.read(obj.data(), obj.size());
-                return nlohmann::json::parse(obj).get<PageElement>();
+                return nlohmann::json::parse(obj).get<Page>();
             }
             
             f.seekg(pages[i].base64Begin);
@@ -400,14 +400,14 @@ namespace cbjz
             std::string b(size_t(pages[i].base64End - pages[i].base64Begin), '\0');
             f.read(b.data(), b.size());
             
-            PageElement p;
+            Page p;
             p.set_page_index(i);
             p.set_page_type("Story");
             p.set_base64_image(b);
             return p;
         }
         
-        PageElement pdfPage(int i)
+        Page pdfPage(int i)
         {
             if (!pdf || i < 0 || i >= FPDF_GetPageCount(pdf))
                 throw std::out_of_range("Page index out of range");
@@ -432,14 +432,14 @@ namespace cbjz
             FPDFBitmap_Destroy(bm);
             FPDF_ClosePage(pg);
             
-            PageElement p;
+            Page p;
             p.set_page_index(i);
             p.set_page_type(i ? "Story" : "FrontCover");
             p.set_base64_image("data:image/bgra;width=" + std::to_string(w) + ";height=" + std::to_string(h) + ";stride=" + std::to_string(stride) + ";base64," + StringImageHelper::EncodeBase64(b));
             return p;
         }
         
-        PageElement page(int i)
+        Page page(int i)
         {
             auto e = edited.find(i);
             if (e != edited.end())
@@ -621,13 +621,13 @@ namespace cbjz
         }
     }
 
-    std::vector<PageElement> Cbj::GetPages(int s, int n)
+    std::vector<Page> Cbj::GetPages(int s, int n)
     {
         if (!pImpl->open)
             throw std::runtime_error("No comic open");
         if (s < 0 || n < 0)
             throw std::invalid_argument("Invalid range");
-        std::vector<PageElement> r;
+        std::vector<Page> r;
         for (int i = s; i < s + n && i < pImpl->count(); ++i)
         {
             auto p = pImpl->page(i);
@@ -638,9 +638,9 @@ namespace cbjz
         return r;
     }
 
-    std::vector<PageElement> Cbj::GetPagesForView(int i, ViewMode m) { return m == ViewMode::Single ? GetPages(i, 1) : m == ViewMode::Desktop ? GetPages(i, 2)
+    std::vector<Page> Cbj::GetPagesForView(int i, ViewMode m) { return m == ViewMode::Single ? GetPages(i, 1) : m == ViewMode::Desktop ? GetPages(i, 2)
                                                                                                                                               : GetPages((std::max)(0, i - 1), 3); }
-    PageElement Cbj::GetPage(int i)
+    Page Cbj::GetPage(int i)
     {
         auto r = GetPages(i, 1);
         if (r.empty())
@@ -667,7 +667,7 @@ namespace cbjz
     
     void Cbj::SetMetadata(const Metadata &m) { pImpl->metadata = m; }
     
-    void Cbj::UpdatePage(int i, const PageElement &p)
+    void Cbj::UpdatePage(int i, const Page &p)
     {
         if (i < 0 || i >= pImpl->count())
         throw std::out_of_range("Page index out of range");

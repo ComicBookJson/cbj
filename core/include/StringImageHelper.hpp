@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-namespace cbjz
+namespace cbj
 {
     class StringImageHelper
     {
