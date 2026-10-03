@@ -202,8 +202,8 @@ jobs:
               x86_64) CXX_SHARED="$NDK_LIB/x86_64-linux-android/libc++_shared.so" ;;
             esac
             test -f "$CXX_SHARED"
-            mkdir -p "dist/${{ matrix.triplet }}/lib/${{ matrix.android_abi }}"
-            cp "$CXX_SHARED" "dist/${{ matrix.triplet }}/lib/${{ matrix.android_abi }}/libc++_shared.so"
+            mkdir -p "build/android-runtime/lib/${{ matrix.android_abi }}"
+            cp "$CXX_SHARED" "build/android-runtime/lib/${{ matrix.android_abi }}/libc++_shared.so"
           fi
           tar -C build -czf "cbjzcore-${{ matrix.triplet }}.tar.gz" .
 
