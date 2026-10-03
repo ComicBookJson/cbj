@@ -87,8 +87,9 @@ jobs:
           curl -fsSL "https://dl.google.com/android/repository/$NDK_ZIP" -o "$RUNNER_TEMP/$NDK_ZIP"
           rm -rf "$RUNNER_TEMP/android-ndk-$NDK_RELEASE"
           unzip -q "$RUNNER_TEMP/$NDK_ZIP" -d "$RUNNER_TEMP"
-          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-$NDK_VERSION" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_ROOT=$RUNNER_TEMP/android-ndk-$NDK_VERSION" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-$NDK_RELEASE" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$RUNNER_TEMP/android-ndk-$NDK_RELEASE" >> "$GITHUB_ENV"
+          test -x "$RUNNER_TEMP/android-ndk-$NDK_RELEASE/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
 
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v6
