@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(ComicBookJson VERSION 1.0.0 LANGUAGES C CXX)
 
-# Exigir C++17 (necessário para std::optional usado no quicktype e nlohmann)
+# Exigir C++17 (necessário para std::optional usado no quicktype e RapidJSON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Essencial para gerar DLL/SO compartilhado
