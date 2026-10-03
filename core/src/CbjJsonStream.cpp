@@ -7,6 +7,7 @@
 #include "rapidjson/ostreamwrapper.h"
 #include <fstream>
 #include <string>
+#include <exception>
 
 namespace cbj
 {
