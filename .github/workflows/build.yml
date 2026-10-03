@@ -386,11 +386,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
       - name: Download generated Java bindings
         uses: actions/download-artifact@v4
         with:
           name: cbj-java-bindings-android-arm64-v8a
-          path: swig/java/CbjAndroid/src/main
+          path: swig/java/CbjAndroid
 
       - name: Download Android native libraries
         uses: actions/download-artifact@v4
@@ -404,15 +409,22 @@ jobs:
         shell: bash
         run: |
           gradle --version
-          gradle --no-daemon assembleRelease
-          test -f build/outputs/aar/CbjAndroid-release.aar
-          cp build/outputs/aar/CbjAndroid-release.aar CbjAndroid.aar
+          gradle --no-daemon :CbjAndroid:assembleRelease
+          test -f CbjAndroid/build/outputs/aar/CbjAndroid-release.aar
+          cp CbjAndroid/build/outputs/aar/CbjAndroid-release.aar CbjAndroid.aar
+
+      - name: Upload generated AAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-android-aar
+          path: swig/java/CbjAndroid/CbjAndroid.aar
+          if-no-files-found: error
 
       - name: Commit Java bindings and Gradle project when changed
         shell: bash
         run: |
-          git add swig/java/CbjAndroid
-          if git diff --cached --quiet -- swig/java/CbjAndroid; then
+          git add swig/java/CbjAndroid/src swig/java/CbjAndroid/settings.gradle swig/java/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/src/main/AndroidManifest.xml swig/java/CbjAndroid/CbjAndroid/.gitignore
+          if git diff --cached --quiet -- swig/java/CbjAndroid/src swig/java/CbjAndroid/settings.gradle swig/java/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/build.gradle swig/java/CbjAndroid/CbjAndroid/src/main/AndroidManifest.xml swig/java/CbjAndroid/CbjAndroid/.gitignore; then
             echo "No generated Java binding or project changes."
             exit 0
           fi
