@@ -83,9 +83,9 @@ jobs:
         shell: bash
         run: |
           NDK_VERSION=27.2.12479018
-          NDK_ZIP="android-ndk-$NDK_VERSION-linux.zip"
+          NDK_RELEASE=r27c\n          NDK_ZIP="android-ndk-$NDK_RELEASE-linux.zip"
           curl -fsSL "https://dl.google.com/android/repository/$NDK_ZIP" -o "$RUNNER_TEMP/$NDK_ZIP"
-          rm -rf "$RUNNER_TEMP/android-ndk-$NDK_VERSION"
+          rm -rf "$RUNNER_TEMP/android-ndk-$NDK_RELEASE"
           unzip -q "$RUNNER_TEMP/$NDK_ZIP" -d "$RUNNER_TEMP"
           echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-$NDK_VERSION" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$RUNNER_TEMP/android-ndk-$NDK_VERSION" >> "$GITHUB_ENV"
