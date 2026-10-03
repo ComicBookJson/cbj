@@ -2,7 +2,7 @@
 #include "CbjSchema.hpp"
 #include <string>
 #include <vector>
-#include <streamoff>
+#include <ios>
 
 namespace cbj
 {
