@@ -25,7 +25,7 @@ target_include_directories(CbjCore PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_include_directories(CbjCore PRIVATE vendor/rapidjson vendor/logfault vendor/miniz)
+target_include_directories(CbjCore PRIVATE vendor)
 target_link_libraries(CbjCore PRIVATE unarr)
 
 # RapidJSON and Logfault are vendored under core/vendor.
@@ -49,7 +49,6 @@ if(WIN32)
             "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin"
             "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin"
             "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin"
-            "$ENV{ProgramFiles(x86)}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin"
     )
     if(NOT MUPDF_MSBUILD_EXECUTABLE)
         message(FATAL_ERROR "MSBuild is required to build the static MuPDF Windows library.")
@@ -79,7 +78,7 @@ if(WIN32)
     )
 elseif(UNIX OR APPLE)
     add_custom_target(cbj_mupdf_build
-        COMMAND make -C "${mupdf_SOURCE_DIR}" build=release HAVE_X11=no HAVE_GLFW=no
+        COMMAND make -C "${mupdf_SOURCE_DIR}" build=release HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
         BYPRODUCTS "${MUPDF_BUILD_DIR}/libmupdf.a" "${MUPDF_BUILD_DIR}/libmupdf-third.a"
         VERBATIM)
     add_dependencies(CbjCore cbj_mupdf_build)
