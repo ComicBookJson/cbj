@@ -68,6 +68,12 @@ function(cbj_add_swig_target target language)
         VERBATIM)
 
     if(ANDROID)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:CbjCore>" "${CBJ_DIST_DIR}/$<TARGET_FILE_NAME:CbjCore>"
+            VERBATIM)
+    endif()
+
+    if(ANDROID)
         file(GLOB_RECURSE CBJ_LIBCXX_SHARED_FILES
             "${CMAKE_SYSROOT}/usr/lib/*/libc++_shared.so")
         list(LENGTH CBJ_LIBCXX_SHARED_FILES CBJ_LIBCXX_SHARED_COUNT)
