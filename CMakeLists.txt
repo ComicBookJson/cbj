@@ -9,6 +9,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON) # Essencial para gerar DLL/SO compartilh
 # Habilitar o módulo de download de dependências do CMake
 include(FetchContent)
 
+# unarr v1.1.1 has a legacy CMakeLists.txt without a modern minimum version.
+# Keep the dependency build compatible with current CMake releases.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum policy version for legacy dependencies")
+
 # 1. Baixar o UNARR (Para CBR/RAR) na hora da compilação
 FetchContent_Declare(
     unarr
