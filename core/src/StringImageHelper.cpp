@@ -1,4 +1,6 @@
 #include "StringImageHelper.hpp"
+#include "CbjLog.hpp"
+#include <exception>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -75,18 +77,47 @@ namespace cbj
 
     std::string StringImageHelper::ReadFile(const std::string &p)
     {
-        std::ifstream f(p, std::ios::binary);
-        if (!f)
-            throw std::runtime_error("Cannot open file: " + p);
-        return {std::istreambuf_iterator<char>(f), {}};
+        try
+        {
+            std::ifstream f(p, std::ios::binary);
+            if (!f)
+                throw std::runtime_error("Cannot open file: " + p);
+            return {std::istreambuf_iterator<char>(f), {}};
+        }
+        catch (const std::exception &e)
+        {
+            CbjLog::Error("image", std::string("exception reading file: ") + e.what());
+            throw;
+        }
+        catch (...)
+        {
+            CbjLog::Error("image", "exception reading file: non-standard exception");
+            throw;
+        }
     }
 
     bool StringImageHelper::WriteFile(const std::string &p, const std::string &b)
     {
-        std::ofstream f(p, std::ios::binary | std::ios::trunc);
-        if (!f)
+        try
+        {
+            std::ofstream f(p, std::ios::binary | std::ios::trunc);
+            if (!f)
+            {
+                CbjLog::Warn("image", "cannot open file for writing: " + p);
+                return false;
+            }
+            f.write(b.data(), b.size());
+            return bool(f);
+        }
+        catch (const std::exception &e)
+        {
+            CbjLog::Error("image", std::string("exception writing file: ") + e.what());
             return false;
-        f.write(b.data(), b.size());
-        return bool(f);
+        }
+        catch (...)
+        {
+            CbjLog::Error("image", "exception writing file: non-standard exception");
+            return false;
+        }
     }
 }
