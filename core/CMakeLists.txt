@@ -35,7 +35,7 @@ target_include_directories(CbjzCore PUBLIC
 target_include_directories(CbjzCore PRIVATE vendor/rapidjson vendor/logfault vendor/miniz)
 target_link_libraries(CbjzCore PRIVATE unarr)
 
-# RapidJSON and Logfault are vendored under core/vendor.\n\nFetchContent_Declare(
+# RapidJSON and Logfault are vendored under core/vendor.\ninclude(FetchContent)\n\nFetchContent_Declare(
     mupdf
     GIT_REPOSITORY https://github.com/ArtifexSoftware/mupdf.git
     GIT_TAG master
