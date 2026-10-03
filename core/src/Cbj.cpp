@@ -198,6 +198,10 @@ namespace cbj
         std::vector<Entry> entries;
         /** Logical pages exposed by the API. */
         std::vector<LogicalPageRef> logicalPages;
+        /** Unarr offset of an optional ComicInfo.xml metadata entry. */
+        long long metadataOffset = -1;
+        /** Uncompressed size of the optional ComicInfo.xml entry. */
+        size_t metadataSize = 0;
         /** CBJ JSON page ordinals. */
         std::vector<std::streamoff> pages;
         /** Decoded page cache. */
@@ -261,6 +265,8 @@ namespace cbj
             cache.clear();
             edited.clear();
             detectedDoublePages.clear();
+            metadataOffset = -1;
+            metadataSize = 0;
             metadata = Metadata();
             importOptions = DoublePageOptions();
             open = false;
@@ -355,31 +361,20 @@ namespace cbj
         }
 
         /** Reads ComicInfo.xml and returns source image indices explicitly marked DoublePage. */
+        /** Reads ComicInfo.xml and returns source image indices explicitly marked DoublePage. */
         std::unordered_set<int> readMetadataDoublePages()
         {
             std::unordered_set<int> result;
-            int metadataEntry = -1;
-            for (int i = 0; i < int(entries.size()); ++i)
-            {
-                const std::string name = lower(std::filesystem::path(entries[i].name).filename().string());
-                if (name == "comicinfo.xml")
-                {
-                    metadataEntry = i;
-                    break;
-                }
-            }
-            if (metadataEntry < 0)
+            if (metadataOffset < 0)
                 return result;
 
             try
             {
-                const std::string xml = extractEntry(entries[metadataEntry]);
-                static const std::regex pageExpression(R"(<Page\b[^>]*>)",
-                    std::regex::icase);
-                static const std::regex imageExpression(R"(\bImage\s*=\s*["'](\d+)["'])",
-                    std::regex::icase);
-                static const std::regex doubleExpression(R"(\bDoublePage\s*=\s*["'](true|1)["'])",
-                    std::regex::icase);
+                Entry metadataEntry{"ComicInfo.xml", metadataOffset, metadataSize};
+                const std::string xml = extractEntry(metadataEntry);
+                static const std::regex pageExpression(R"(<Page\b[^>]*>)", std::regex::icase);
+                static const std::regex imageExpression(R"(\bImage\s*=\s*["'](\d+)["'])", std::regex::icase);
+                static const std::regex doubleExpression(R"(\bDoublePage\s*=\s*["'](true|1)["'])", std::regex::icase);
 
                 for (std::sregex_iterator i(xml.begin(), xml.end(), pageExpression), end; i != end; ++i)
                 {
@@ -389,8 +384,14 @@ namespace cbj
                     if (std::regex_search(tag, imageMatch, imageExpression) &&
                         std::regex_search(tag, doubleMatch, doubleExpression))
                     {
-                        try { result.insert(std::stoi(imageMatch[1].str())); }
-                        catch (...) { CbjLog::Warn("double-page", "invalid ComicInfo Image index in metadata"); }
+                        try
+                        {
+                            result.insert(std::stoi(imageMatch[1].str()));
+                        }
+                        catch (...)
+                        {
+                            CbjLog::Warn("double-page", "invalid ComicInfo Image index in metadata");
+                        }
                     }
                 }
                 if (!result.empty())
@@ -610,8 +611,19 @@ namespace cbj
             while (ar_parse_entry(archive))
             {
                 const char *name = ar_entry_get_name(archive);
-                if (name && image(name))
-                    entries.push_back({name, (long long)ar_entry_get_offset(archive), ar_entry_get_size(archive)});
+                if (name)
+                {
+                    const std::string entryName = name;
+                    const std::string baseName =
+                        lower(std::filesystem::path(entryName).filename().string());
+                    if (baseName == "comicinfo.xml")
+                    {
+                        metadataOffset = (long long)ar_entry_get_offset(archive);
+                        metadataSize = ar_entry_get_size(archive);
+                    }
+                    if (image(entryName))
+                        entries.push_back({entryName, (long long)ar_entry_get_offset(archive), ar_entry_get_size(archive)});
+                }
             }
 
             ar_close_archive(archive);
