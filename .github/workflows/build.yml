@@ -305,11 +305,8 @@ jobs:
           mkdir -p "build/android-aar-native/lib/${{ matrix.android_abi }}"
           cp "build/core/libcbz.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libcbz.so"
           PDFIUM_SO="build/_deps/pdfium-src/lib/libpdfium.so"
-          UNARR_SO="build/_deps/unarr-build/libunarr.so"
           test -f "$PDFIUM_SO"
-          test -f "$UNARR_SO"
           cp "$PDFIUM_SO" "build/android-aar-native/lib/${{ matrix.android_abi }}/libpdfium.so"
-          cp "$UNARR_SO" "build/android-aar-native/lib/${{ matrix.android_abi }}/libunarr.so"
           cp "build/android-runtime/lib/${{ matrix.android_abi }}/libc++_shared.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libc++_shared.so"
 
       - name: Upload Java SWIG bindings
