@@ -35,27 +35,7 @@ target_include_directories(CbjzCore PUBLIC
 target_include_directories(CbjzCore PRIVATE vendor/rapidjson vendor/logfault vendor/miniz)
 target_link_libraries(CbjzCore PRIVATE unarr)
 
-include(FetchContent)
-FetchContent_Declare(
-    rapidjson
-    GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-    GIT_TAG 1.1.0
-    GIT_SHALLOW TRUE
-)
-FetchContent_Declare(
-    logfault
-    GIT_REPOSITORY https://github.com/jgaa/logfault.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(rapidjson logfault)
-
-target_include_directories(CbjzCore PRIVATE
-    ${rapidjson_SOURCE_DIR}/include
-    ${logfault_SOURCE_DIR}/include
-)
-
-FetchContent_Declare(
+# RapidJSON and Logfault are vendored under core/vendor.\n\nFetchContent_Declare(
     mupdf
     GIT_REPOSITORY https://github.com/ArtifexSoftware/mupdf.git
     GIT_TAG master
