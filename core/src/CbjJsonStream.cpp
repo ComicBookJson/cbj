@@ -135,20 +135,37 @@ namespace cbj
             bool Null() { return true; }
         };
 
+        /** Runs one streaming SAX parse over a JSON file. */
         bool run(const std::string &path, SaxHandler &h)
         {
             std::FILE *f = std::fopen(path.c_str(), "rb");
             if (!f)
+            {
+                CbjLog::Error("json", "cannot open JSON stream: " + path);
                 return false;
+            }
 
-            char buffer[64 * 1024];
-            rapidjson::FileReadStream is(f, buffer, sizeof(buffer));
-            rapidjson::Reader r;
-
-            const bool result = !r.Parse(is, h).IsError();
-
-            std::fclose(f);
-            return result;
+            try
+            {
+                char buffer[64 * 1024];
+                rapidjson::FileReadStream is(f, buffer, sizeof(buffer));
+                rapidjson::Reader r;
+                const bool result = !r.Parse(is, h).IsError();
+                std::fclose(f);
+                return result;
+            }
+            catch (const std::exception &e)
+            {
+                std::fclose(f);
+                CbjLog::Error("json", std::string("exception during SAX parse: ") + e.what());
+                return false;
+            }
+            catch (...)
+            {
+                std::fclose(f);
+                CbjLog::Error("json", "exception during SAX parse: non-standard exception");
+                return false;
+            }
         }
 
         struct Validator : rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Validator>
