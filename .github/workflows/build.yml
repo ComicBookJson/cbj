@@ -83,15 +83,12 @@ jobs:
         shell: bash
         run: |
           NDK_VERSION=27.2.12479018
-          NDK_RELEASE=r27c
-          NDK_ZIP="android-ndk-$NDK_RELEASE-linux.zip"
-          curl -fsSL "https://dl.google.com/android/repository/$NDK_ZIP" -o "$RUNNER_TEMP/$NDK_ZIP"
-          rm -rf "$RUNNER_TEMP/android-ndk-$NDK_RELEASE"
-          unzip -q "$RUNNER_TEMP/$NDK_ZIP" -d "$RUNNER_TEMP"
-          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-$NDK_RELEASE" >> "$GITHUB_ENV"
-          echo "ANDROID_NDK_ROOT=$RUNNER_TEMP/android-ndk-$NDK_RELEASE" >> "$GITHUB_ENV"
-          test -x "$RUNNER_TEMP/android-ndk-$NDK_RELEASE/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
-
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "ndk;$NDK_VERSION"
+          NDK_HOME="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
+          test -x "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
+          echo "ANDROID_NDK_HOME=$NDK_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$NDK_HOME" >> "$GITHUB_ENV"
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v6
 
