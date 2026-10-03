@@ -126,7 +126,7 @@ namespace cbj
     class Cbj::Impl
     {
     public:
-        std::string path = std::string::empty, kind = std::string::empty, version = "1.0";
+        std::string path, kind, version = "1.0";
         Metadata metadata;
         std::vector<Entry> entries;
         std::vector<std::streamoff> pages;
@@ -317,9 +317,6 @@ namespace cbj
             d.SetMetadata(metadata);
             d.SetPages({});
             for (int i=0;i<count();++i) d.MutablePages().push_back(page(i));
-            cbj::CbjBuilder builder;
-            // CbjBuilder's public setters are intentionally used by clients; the
-            // internal SaveAsCbjz path writes the same validated CBJ archive.
             const std::string json = o + ".data.json.tmp";
             const std::string archive = o + ".tmp";
             if (!WriteDocumentJson(json, d)) throw std::runtime_error("Cannot write data.json");
