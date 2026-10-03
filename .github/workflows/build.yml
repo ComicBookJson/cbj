@@ -180,6 +180,7 @@ jobs:
           test -x "$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
           echo "ANDROID_NDK_HOME=$NDK_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$NDK_HOME" >> "$GITHUB_ENV"
+
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v6
 
@@ -194,6 +195,23 @@ jobs:
 
       - name: Build complete library
         run: cmake --build build --config Release --parallel
+
+      - name: Validate Android ELF 16 KB alignment
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          READ_ELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          test -x "$READ_ELF"
+          echo "Program headers for build/core/libcbz.so:"
+          "$READ_ELF" -lW build/core/libcbz.so
+          "$READ_ELF" -lW build/core/libcbz.so | awk '
+            $1 == "LOAD" {
+              if ($NF != "0x4000") {
+                print "ERROR: LOAD segment alignment is " $NF ", expected 0x4000 (16 KB)"
+                exit 1
+              }
+            }
+          '
 
       - name: Package library
         shell: bash
