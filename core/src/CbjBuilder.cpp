@@ -156,8 +156,16 @@ namespace cbj
             fs::rename(archive, output);
             CbjLog::Info("builder", "saved validated CBJ archive: " + output.string());
             return true;
+        } catch (const std::exception &e) {
+            CbjLog::Error("builder", std::string("exception saving CBJ: ") + e.what());
+            fs::remove(json);
+            fs::remove(archive);
+            return false;
         } catch (...) {
-            fs::remove(json); fs::remove(archive); return false;
+            CbjLog::Error("builder", "exception saving CBJ: non-standard exception");
+            fs::remove(json);
+            fs::remove(archive);
+            return false;
         }
     }
 }
