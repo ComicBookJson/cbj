@@ -34,7 +34,6 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
               -DANDROID_ABI=arm64-v8a
               -DANDROID_PLATFORM=android-24
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-android-arm64.tgz
           - platform: Android
             variant: android-armeabi-v7a
             os: ubuntu-24.04
@@ -45,7 +44,6 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
               -DANDROID_ABI=armeabi-v7a
               -DANDROID_PLATFORM=android-24
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-android-arm.tgz
           - platform: Android
             variant: android-x86
             os: ubuntu-24.04
@@ -56,7 +54,6 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
               -DANDROID_ABI=x86
               -DANDROID_PLATFORM=android-24
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-android-x86.tgz
           - platform: Android
             variant: android-x86_64
             os: ubuntu-24.04
@@ -67,7 +64,6 @@ jobs:
               -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
               -DANDROID_ABI=x86_64
               -DANDROID_PLATFORM=android-24
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-android-x64.tgz
           - platform: iOS
             variant: ios-arm64
             os: macos-14
@@ -78,7 +74,6 @@ jobs:
               -DCMAKE_OSX_SYSROOT=iphoneos
               -DCMAKE_OSX_ARCHITECTURES=arm64
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-device-arm64.tgz
           - platform: iOS
             variant: iossimulator-arm64
             os: macos-14
@@ -89,7 +84,6 @@ jobs:
               -DCMAKE_OSX_SYSROOT=iphonesimulator
               -DCMAKE_OSX_ARCHITECTURES=arm64
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-simulator-arm64.tgz
           - platform: iOS
             variant: iossimulator-x64
             os: macos-14
@@ -100,7 +94,6 @@ jobs:
               -DCMAKE_OSX_SYSROOT=iphonesimulator
               -DCMAKE_OSX_ARCHITECTURES=x86_64
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-simulator-x64.tgz
           - platform: MacCatalyst
             variant: maccatalyst-arm64
             os: macos-14
@@ -113,7 +106,6 @@ jobs:
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
               -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
               -DCBJ_IOS_CATALYST=ON
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-catalyst-arm64.tgz
           - platform: MacCatalyst
             variant: maccatalyst-x64
             os: macos-14
@@ -126,7 +118,6 @@ jobs:
               -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
               -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
               -DCBJ_IOS_CATALYST=ON
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-catalyst-x64.tgz
           - platform: Windows
             variant: windows-arm64
             os: windows-2025
@@ -138,7 +129,6 @@ jobs:
               -DCMAKE_CXX_COMPILER=clang-cl
               -DCMAKE_C_FLAGS=--target=arm64-pc-windows-msvc
               -DCMAKE_CXX_FLAGS="--target=arm64-pc-windows-msvc /EHsc"
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-arm64.tgz
           - platform: Windows
             variant: windows-x64
             os: windows-2025
@@ -150,7 +140,6 @@ jobs:
               -DCMAKE_CXX_COMPILER=clang-cl
               -DCMAKE_C_FLAGS=--target=x86_64-pc-windows-msvc
               -DCMAKE_CXX_FLAGS="--target=x86_64-pc-windows-msvc /EHsc"
-              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz
 
     runs-on: ${{ matrix.os }}
 
@@ -303,9 +292,6 @@ jobs:
         run: |
           mkdir -p "build/android-aar-native/lib/${{ matrix.android_abi }}"
           cp "build/core/libcbz.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libcbz.so"
-          PDFIUM_SO="build/_deps/pdfium-src/lib/libpdfium.so"
-          test -f "$PDFIUM_SO"
-          cp "$PDFIUM_SO" "build/android-aar-native/lib/${{ matrix.android_abi }}/libpdfium.so"
           cp "build/android-runtime/lib/${{ matrix.android_abi }}/libc++_shared.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libc++_shared.so"
 
       - name: Upload Java SWIG bindings
