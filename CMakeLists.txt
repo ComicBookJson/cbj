@@ -16,7 +16,7 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum policy version for le
 # Apple packages are merged into the final architecture-specific static archive.
 # unarr honors BUILD_SHARED_LIBS, so force its dependency to produce libunarr.a
 # instead of a dylib on iOS and Mac Catalyst.
-if(APPLE)
+if(APPLE OR ANDROID)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build dependencies as static libraries" FORCE)
 else()
     set(BUILD_SHARED_LIBS ON CACHE BOOL "Build dependencies as shared libraries" FORCE)
