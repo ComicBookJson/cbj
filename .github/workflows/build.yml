@@ -404,7 +404,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cbj-java-bindings-android-arm64-v8a
-          path: swig/java/CbjAndroid
+          path: swig/java/CbjAndroid/CbjAndroid/src/main/java
 
       - name: Download Android native libraries
         uses: actions/download-artifact@v4
