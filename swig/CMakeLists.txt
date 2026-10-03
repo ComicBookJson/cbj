@@ -14,6 +14,8 @@ function(cbj_add_swig_target target language)
     swig_add_library(${target}
         TYPE SHARED
         LANGUAGE ${language}
+        OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/${target}"
+        OUTFILE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${target}"
         SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/cbj.i"
     )
 
@@ -30,6 +32,13 @@ function(cbj_add_swig_target target language)
         # The wrapper is the only DLL; CbJCore and all third-party code are
         # statically linked into this module.
         set_target_properties(${target} PROPERTIES PREFIX "")
+    endif()
+
+    if("${language}" STREQUAL "java")
+        # Java's generated proxy loads the native module as "cbz".
+        set_target_properties(${target} PROPERTIES OUTPUT_NAME "cbz")
+    elseif("${language}" STREQUAL "csharp")
+        set_target_properties(${target} PROPERTIES OUTPUT_NAME "cbz_csharp")
     endif()
 endfunction()
 
