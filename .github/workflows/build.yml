@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ matrix.platform }}
+    name: Build ${{ matrix.variant }}
     strategy:
       fail-fast: false
       matrix:
