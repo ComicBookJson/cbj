@@ -65,27 +65,33 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Java
         if: matrix.platform == 'Android'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Setup Android SDK
         if: matrix.platform == 'Android'
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
-      - name: Setup Android NDK
+      - name: Install Android NDK
         if: matrix.platform == 'Android'
-        uses: android-actions/setup-ndk@v1
-        with:
-          ndk-version: '27.2.12479018'
+        shell: bash
+        run: |
+          NDK_VERSION=27.2.12479018
+          NDK_ZIP="android-ndk-$NDK_VERSION-linux.zip"
+          curl -fsSL "https://dl.google.com/android/repository/$NDK_ZIP" -o "$RUNNER_TEMP/$NDK_ZIP"
+          rm -rf "$RUNNER_TEMP/android-ndk-$NDK_VERSION"
+          unzip -q "$RUNNER_TEMP/$NDK_ZIP" -d "$RUNNER_TEMP"
+          echo "ANDROID_NDK_HOME=$RUNNER_TEMP/android-ndk-$NDK_VERSION" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$RUNNER_TEMP/android-ndk-$NDK_VERSION" >> "$GITHUB_ENV"
 
       - name: Setup Ninja
-        uses: seanmiddleditch/gha-setup-ninja@v5
+        uses: seanmiddleditch/gha-setup-ninja@v6
 
       - name: Configure
         shell: bash
