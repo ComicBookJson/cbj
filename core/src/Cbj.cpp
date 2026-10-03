@@ -1,7 +1,14 @@
 #include "Cbj.hpp"
 #include "StringImageHelper.hpp"
+#include "CbjJsonStream.hpp"
+#include "CbjLog.hpp"
 #include <unarr.h>
-#include <fpdfview.h>
+#include <mupdf/fitz/context.h>
+#include <mupdf/fitz/document.h>
+#include <mupdf/fitz/util.h>
+#include <mupdf/fitz/colorspace.h>
+#include <mupdf/fitz/pixmap.h>
+#include <miniz.h>
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
@@ -122,11 +129,13 @@ namespace cbj
         std::string path = std::string::empty, kind = std::string::empty, version = "1.0";
         Metadata metadata;
         std::vector<Entry> entries;
-        std::vector<Loc> pages;
+        std::vector<std::streamoff> pages;
         std::unordered_map<int, Page> cache, edited;
         int radius = 2;
         bool open = false, cbjz = false;
-        FPDF_DOCUMENT pdf = nullptr;
+        fz_context *pdfContext = nullptr;
+        fz_document *pdf = nullptr;
+        std::string jsonPath;
         
         ~Impl() 
         { 
@@ -135,17 +144,15 @@ namespace cbj
         
         void closePdf()
         {
-            if (pdf)
-            {
-                FPDF_CloseDocument(pdf);
-                pdf = nullptr;
-                FPDF_DestroyLibrary();
-            }
+            if (pdf && pdfContext) { fz_drop_document(pdfContext, pdf); pdf = nullptr; }
+            if (pdfContext) { fz_drop_context(pdfContext); pdfContext = nullptr; }
         }
         
         void reset()
         {
             closePdf();
+            if (!jsonPath.empty()) { std::error_code ec; std::filesystem::remove(jsonPath, ec); }
+            jsonPath.clear();
             path.clear();
             kind.clear();
             version = "1.0";
@@ -157,7 +164,7 @@ namespace cbj
             open = cbjz = false;
         }
         
-        int count() const { return kind == "pdf" && pdf ? FPDF_GetPageCount(pdf) : cbjz ? int(pages.size())
+        int count() const { return kind == "pdf" && pdf ? fz_count_pages(pdfContext, pdf) : cbjz ? int(pages.size())
                                                                                         : int(entries.size()); }
         void archive(const std::string &p, const std::string &k)
         {
@@ -226,219 +233,60 @@ namespace cbj
         
         void indexCbjz()
         {
-            std::ifstream f(path, std::ios::binary);
-            if (!f)
-                throw std::runtime_error("Cannot open CBJZ");
-            std::string pre, key;
-            bool in = false, esc = false, found = false;
-            char c;
-            while (f.get(c))
-            {
-                pre += c;
-                if (in)
-                {
-                    if (esc)
-                        esc = false;
-                    else if (c == '\\')
-                        esc = true;
-                    else if (c == '"')
-                    {
-                        in = false;
-                        if (key == "pages")
-                        {
-                            ws(f);
-                            if (!f.get(c) || c != ':')
-                                throw std::runtime_error("Bad pages");
-                            pre += c;
-                            ws(f);
-                            if (!f.get(c) || c != '[')
-                                throw std::runtime_error("Bad pages array");
-                            pre += c;
-                            found = true;
-                            break;
-                        }
-                        key.clear();
-                    }
-                    else
-                        key += c;
-                }
-                else if (c == '"')
-                {
-                    in = true;
-                    key.clear();
-                }
+            mz_zip_archive zip{};
+            if (!mz_zip_reader_init_file(&zip, path.c_str(), 0))
+                throw std::runtime_error("Cannot open CBJ archive");
+            if (mz_zip_reader_locate_file(&zip, "data.json", nullptr, 0) < 0) {
+                mz_zip_reader_end(&zip);
+                throw std::runtime_error("CBJ archive must contain data.json");
             }
-            if (!found)
-                throw std::runtime_error("pages not found");
-            auto m = pre.find("\"metadata\"");
-            auto mc = pre.find(':', m);
-            auto mb = pre.find('{', mc);
-            if (m == std::string::npos || mb == std::string::npos)
-                throw std::runtime_error("metadata not found");
-            int d = 0;
-            in = esc = false;
-            size_t me = mb;
-            for (; me < pre.size(); ++me)
-            {
-                c = pre[me];
-                if (in)
-                {
-                    if (esc)
-                        esc = false;
-                    else if (c == '\\')
-                        esc = true;
-                    else if (c == '"')
-                        in = false;
-                    continue;
-                }
-                if (c == '"')
-                {
-                    in = true;
-                    continue;
-                }
-                if (c == '{')
-                    ++d;
-                else if (c == '}' && --d == 0)
-                {
-                    ++me;
-                    break;
-                }
+            jsonPath = path + ".data.json.tmp";
+            if (!mz_zip_reader_extract_file_to_file(&zip, "data.json", jsonPath.c_str(), 0)) {
+                mz_zip_reader_end(&zip);
+                throw std::runtime_error("Cannot extract data.json");
             }
-            metadata = nlohmann::json::parse(pre.substr(mb, me - mb)).get<Metadata>();
-            auto v = pre.find("\"version\"");
-            if (v != std::string::npos)
-            {
-                auto q = pre.find('"', pre.find(':', v));
-                auto q2 = pre.find('"', q + 1);
-                if (q != std::string::npos && q2 != std::string::npos)
-                    version = pre.substr(q + 1, q2 - q - 1);
+            mz_zip_reader_end(&zip);
+            if (!ValidateAndIndexCbjJson(jsonPath, pages, version, metadata)) {
+                throw std::runtime_error("Invalid CBJ data.json");
             }
-            int depth = 0;
-            std::streamoff objectBegin = -1;
-            in = esc = false;
-            key.clear();
-            while (f.get(c))
-            {
-                if (in)
-                {
-                    if (esc)
-                        esc = false;
-                    else if (c == '\\')
-                        esc = true;
-                    else if (c == '"')
-                    {
-                        in = false;
-                        if (key == "base64Image")
-                        {
-                            ws(f);
-                            if (!f.get(c) || c != ':')
-                                throw std::runtime_error("Bad base64Image");
-                                
-                            ws(f);
-                            if (!f.get(c) || c != '"')
-                                throw std::runtime_error("Bad base64Image value");
-                            
-                            Loc l{objectBegin, -1, f.tellg(), 0};
-                            skipstr(f);
-                            
-                            l.base64End = f.tellg() - std::streamoff(1);
-                            pages.push_back(l);
-                        }
-                        key.clear();
-                    }
-                    else
-                        key += c;
-                    continue;
-                }
-                if (c == '"')
-                {
-                    in = true;
-                    key.clear();
-                    continue;
-                }
-                if (c == '{')
-                {
-                    if (depth == 0)
-                        objectBegin = f.tellg() - std::streamoff(1);
-                    ++depth;
-                }
-                else if (c == '}')
-                {
-                    if (depth == 1 && !pages.empty() && pages.back().objectEnd < 0)
-                        pages.back().objectEnd = f.tellg();
-                    --depth;
-                }
-                else if (c == ']' && depth == 0)
-                    break;
-            }
-            if (pages.empty())
-                throw std::runtime_error("No pages");
             cbjz = open = true;
         }
-        
+
         Page cbjzPage(int i)
         {
             auto e = edited.find(i);
-            if (e != edited.end())
-                return e->second;
-            
-            if (i < 0 || i >= int(pages.size()))
-                throw std::out_of_range("Page index out of range");
-            
-            std::ifstream f(path, std::ios::binary);
-            
-            if (pages[i].objectBegin >= 0 && pages[i].objectEnd > pages[i].objectBegin)
-            {
-                f.seekg(pages[i].objectBegin);
-                std::string obj(size_t(pages[i].objectEnd - pages[i].objectBegin), '\0');
-                f.read(obj.data(), obj.size());
-                return nlohmann::json::parse(obj).get<Page>();
-            }
-            
-            f.seekg(pages[i].base64Begin);
-            
-            std::string b(size_t(pages[i].base64End - pages[i].base64Begin), '\0');
-            f.read(b.data(), b.size());
-            
+            if (e != edited.end()) return e->second;
+            if (i < 0 || i >= int(pages.size())) throw std::out_of_range("Page index out of range");
             Page p;
-            p.set_page_index(i);
-            p.set_page_type("Story");
-            p.set_base64_image(b);
+            if (!ReadPageFromJson(jsonPath, pages[i], p))
+                throw std::runtime_error("Cannot read CBJ page");
             return p;
         }
-        
+
         Page pdfPage(int i)
         {
-            if (!pdf || i < 0 || i >= FPDF_GetPageCount(pdf))
+            if (!pdf || !pdfContext || i < 0 || i >= fz_count_pages(pdfContext, pdf))
                 throw std::out_of_range("Page index out of range");
-        
-            FPDF_PAGE pg = FPDF_LoadPage(pdf, i);
-            if (!pg)
-                throw std::runtime_error("Cannot load PDF page");
-            
-            int w = (std::max)(1, int(std::ceil(FPDF_GetPageWidthF(pg)))), h = (std::max)(1, int(std::ceil(FPDF_GetPageHeightF(pg))));
-            FPDF_BITMAP bm = FPDFBitmap_Create(w, h, 4);
-            if (!bm)
-            {
-                FPDF_ClosePage(pg);
-                throw std::runtime_error("Cannot create bitmap");
+            fz_pixmap *pix = nullptr;
+            fz_matrix ctm = fz_scale(1.0f, 1.0f);
+            fz_try(pdfContext) {
+                pix = fz_new_pixmap_from_page_number(pdfContext, pdf, i, ctm, fz_device_rgb(pdfContext), 0);
+            } fz_catch(pdfContext) {
+                throw std::runtime_error("Cannot render PDF page");
             }
-            
-            FPDFBitmap_FillRect(bm, 0, 0, w, h, 0xffffffff);
-            FPDF_RenderPageBitmap(bm, pg, 0, 0, w, h, 0, FPDF_ANNOT | FPDF_LCD_TEXT);
-            int stride = FPDFBitmap_GetStride(bm);
-            
-            std::string b((char *)FPDFBitmap_GetBuffer(bm), size_t(stride) * h);
-            FPDFBitmap_Destroy(bm);
-            FPDF_ClosePage(pg);
-            
+            const int w = fz_pixmap_width(pdfContext, pix), h = fz_pixmap_height(pdfContext, pix);
+            const int stride = fz_pixmap_stride(pdfContext, pix);
+            const size_t bytes = size_t(stride) * size_t(h);
+            std::string b(reinterpret_cast<const char*>(fz_pixmap_samples(pdfContext, pix)), bytes);
+            fz_drop_pixmap(pdfContext, pix);
             Page p;
             p.set_page_index(i);
             p.set_page_type(i ? "Story" : "FrontCover");
-            p.set_base64_image("data:image/bgra;width=" + std::to_string(w) + ";height=" + std::to_string(h) + ";stride=" + std::to_string(stride) + ";base64," + StringImageHelper::EncodeBase64(b));
+            p.set_base64_image("data:image/rgb;width=" + std::to_string(w) + ";height=" + std::to_string(h) +
+                               ";stride=" + std::to_string(stride) + ";base64," + StringImageHelper::EncodeBase64(b));
             return p;
         }
-        
+
         Page page(int i)
         {
             auto e = edited.find(i);
@@ -464,18 +312,27 @@ namespace cbj
         
         void save(const std::string &o)
         {
-            std::ofstream f(o, std::ios::binary | std::ios::trunc);
-            if (!f)
-                throw std::runtime_error("Cannot create output");
-            f << "{\"version\":" << nlohmann::json(version).dump() << ",\"metadata\":" << nlohmann::json(metadata).dump() << ",\"pages\":[";
-            for (int i = 0; i < count(); ++i)
-            {
-                if (i)
-                    f << ',';
-                nlohmann::json j = page(i);
-                f << j.dump();
-            }
-            f << "]}";
+            Document d;
+            d.SetVersion(version);
+            d.SetMetadata(metadata);
+            d.SetPages({});
+            for (int i=0;i<count();++i) d.MutablePages().push_back(page(i));
+            cbj::CbjBuilder builder;
+            // CbjBuilder's public setters are intentionally used by clients; the
+            // internal SaveAsCbjz path writes the same validated CBJ archive.
+            const std::string json = o + ".data.json.tmp";
+            const std::string archive = o + ".tmp";
+            if (!WriteDocumentJson(json, d)) throw std::runtime_error("Cannot write data.json");
+            std::vector<std::streamoff> idx; std::string v; Metadata m;
+            if (!ValidateAndIndexCbjJson(json, idx, v, m)) throw std::runtime_error("Invalid data.json");
+            mz_zip_archive zip{};
+            if (!mz_zip_writer_init_file(&zip, archive.c_str(), 0)) throw std::runtime_error("Cannot create CBJ");
+            bool ok = mz_zip_writer_add_file(&zip, "data.json", json.c_str(), nullptr, 0, MZ_BEST_COMPRESSION);
+            ok = ok && mz_zip_writer_finalize_archive(&zip);
+            mz_zip_writer_end(&zip);
+            std::filesystem::remove(json);
+            if (!ok) { std::filesystem::remove(archive); throw std::runtime_error("Cannot finalize CBJ"); }
+            std::filesystem::remove(o); std::filesystem::rename(archive, o);
         }
     };
 
@@ -493,7 +350,7 @@ namespace cbj
         auto e = std::filesystem::path(p).extension().string();
         std::transform(e.begin(), e.end(), e.begin(), [](char c)
                        { return char(std::tolower((unsigned char)c)); });
-        if (e == ".cbjz")
+        if (e == ".cbj" || e == ".cbjz")
             return OpenCbjz(p);
         if (e == ".cbz")
             return ImportFromCbz(p);
@@ -582,28 +439,21 @@ namespace cbj
 
     bool Cbj::ImportFromPdf(const std::string &p)
     {
-        try
-        {
+        try {
             pImpl->reset();
-            FPDF_InitLibrary();
-            pImpl->pdf = FPDF_LoadDocument(p.c_str(), nullptr);
-            if (!pImpl->pdf)
-            {
-                pImpl->closePdf();
-                return false;
-            }
+            pImpl->pdfContext = fz_new_context(nullptr, nullptr, FZ_STORE_DEFAULT);
+            if (!pImpl->pdfContext) return false;
+            fz_register_document_handlers(pImpl->pdfContext);
+            pImpl->pdf = fz_open_document(pImpl->pdfContext, p.c_str());
+            if (!pImpl->pdf) { pImpl->closePdf(); return false; }
             pImpl->path = p;
             pImpl->kind = "pdf";
             pImpl->metadata.set_title(std::filesystem::path(p).stem().string());
             pImpl->metadata.set_series("");
             pImpl->open = true;
+            CbjLog::Info("pdf", "opened PDF with MuPDF: " + p);
             return true;
-        }
-        catch (...)
-        {
-            pImpl->reset();
-            return false;
-        }
+        } catch (...) { pImpl->reset(); return false; }
     }
 
     bool Cbj::SaveAsCbjz(const std::string &p)
