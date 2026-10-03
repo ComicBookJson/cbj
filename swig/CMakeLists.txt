@@ -97,7 +97,7 @@ function(cbj_add_swig_target target language)
         # Java's generated proxy loads the native module as "cbz".
         set_target_properties(${target} PROPERTIES OUTPUT_NAME "cbz")
     elseif("${language}" STREQUAL "csharp")
-        set_target_properties(${target} PROPERTIES OUTPUT_NAME "cbz_csharp")
+        set_target_properties(${target} PROPERTIES OUTPUT_NAME "cbz")
     endif()
 endfunction()
 
