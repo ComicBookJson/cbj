@@ -50,6 +50,18 @@ FetchContent_MakeAvailable(mupdf)
 set(MUPDF_BUILD_DIR "${mupdf_BINARY_DIR}/build/release")
 if(WIN32)
     # MuPDF's official Visual Studio solution produces static .lib files.
+    find_program(MUPDF_MSBUILD_EXECUTABLE
+        NAMES MSBuild.exe msbuild.exe
+        HINTS
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin"
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin"
+            "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin"
+            "$ENV{ProgramFiles(x86)}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin"
+    )
+    if(NOT MUPDF_MSBUILD_EXECUTABLE)
+        message(FATAL_ERROR "MSBuild is required to build the static MuPDF Windows library.")
+    endif()
+
     if(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
         set(MUPDF_VS_PLATFORM "ARM64")
     elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
@@ -59,7 +71,7 @@ if(WIN32)
     endif()
     set(MUPDF_WIN_LIB_DIR "${mupdf_SOURCE_DIR}/platform/win32/${MUPDF_VS_PLATFORM}/Release")
     add_custom_target(cbj_mupdf_build
-        COMMAND msbuild "${mupdf_SOURCE_DIR}/platform/win32/mupdf.sln"
+        COMMAND "${MUPDF_MSBUILD_EXECUTABLE}" "${mupdf_SOURCE_DIR}/platform/win32/mupdf.sln"
                 /m: /p:Configuration=Release /p:Platform=${MUPDF_VS_PLATFORM}
                 /t:libmupdf
         BYPRODUCTS
