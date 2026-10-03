@@ -1,0 +1,113 @@
+name: Build CbjzCore
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cbj-build-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Android
+            os: ubuntu-24.04
+            generator: Ninja
+            triplet: android-arm64
+            cmake_extra: >-
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake
+              -DANDROID_ABI=arm64-v8a
+              -DANDROID_PLATFORM=android-24
+              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-android-arm64.tgz
+          - platform: iOS
+            os: macos-14
+            generator: Ninja
+            triplet: ios-arm64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=iphoneos
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-device-arm64.tgz
+          - platform: MacCatalyst
+            os: macos-14
+            generator: Ninja
+            triplet: catalyst-arm64
+            cmake_extra: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_SYSROOT=macosx
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+              -DCMAKE_XCODE_ATTRIBUTE_SUPPORTS_MACCATALYST=YES
+              -DCBJ_IOS_CATALYST=ON
+              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-ios-catalyst-arm64.tgz
+          - platform: Windows
+            os: windows-2025
+            generator: Ninja
+            triplet: windows-x64
+            cmake_extra: >-
+              -DCMAKE_BUILD_TYPE=Release
+              -DCBJ_PDFIUM_URL=https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        if: matrix.platform == 'Android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: matrix.platform == 'Android'
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Android NDK
+        if: matrix.platform == 'Android'
+        uses: android-actions/setup-ndk@v1
+        with:
+          ndk-version: '27.2.12479018'
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -G "${{ matrix.generator }}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=17 \
+            ${{ matrix.cmake_extra }}
+
+      - name: Build complete library
+        run: cmake --build build --config Release --parallel
+
+      - name: Package library
+        shell: bash
+        run: |
+          cmake --install build --prefix "dist/${{ matrix.triplet }}" || true
+          tar -C build -czf "cbjzcore-${{ matrix.triplet }}.tar.gz" .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbjzcore-${{ matrix.triplet }}
+          path: cbjzcore-${{ matrix.triplet }}.tar.gz
+          if-no-files-found: error
