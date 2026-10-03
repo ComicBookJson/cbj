@@ -192,8 +192,8 @@ namespace cbj
             ar_close(s);
             std::sort(entries.begin(), entries.end(), [](const Entry &a, const Entry &b)
                       { return a.name < b.name; });
-            metadata.set_title(std::filesystem::path(p).stem().string());
-            metadata.set_series("");
+            metadata.SetTitle(std::filesystem::path(p).stem().string());
+            metadata.SetSeries("");
             open = true;
         }
         
@@ -225,9 +225,9 @@ namespace cbj
             ar_close_archive(a);
             ar_close(s);
             Page p;
-            p.set_page_index(i);
-            p.set_page_type(i ? "Story" : "FrontCover");
-            p.set_base64_image("data:" + mime(entries[i].name) + ";base64," + StringImageHelper::EncodeBase64(b));
+            p.SetPageIndex(i);
+            p.SetPageType(i ? "Story" : "FrontCover");
+            p.SetBase64Image("data:" + mime(entries[i].name) + ";base64," + StringImageHelper::EncodeBase64(b));
             return p;
         }
         
@@ -280,9 +280,9 @@ namespace cbj
             std::string b(reinterpret_cast<const char*>(fz_pixmap_samples(pdfContext, pix)), bytes);
             fz_drop_pixmap(pdfContext, pix);
             Page p;
-            p.set_page_index(i);
-            p.set_page_type(i ? "Story" : "FrontCover");
-            p.set_base64_image("data:image/rgb;width=" + std::to_string(w) + ";height=" + std::to_string(h) +
+            p.SetPageIndex(i);
+            p.SetPageType(i ? "Story" : "FrontCover");
+            p.SetBase64Image("data:image/rgb;width=" + std::to_string(w) + ";height=" + std::to_string(h) +
                                ";stride=" + std::to_string(stride) + ";base64," + StringImageHelper::EncodeBase64(b));
             return p;
         }
@@ -448,8 +448,8 @@ namespace cbj
             if (!pImpl->pdf) { pImpl->closePdf(); return false; }
             pImpl->path = p;
             pImpl->kind = "pdf";
-            pImpl->metadata.set_title(std::filesystem::path(p).stem().string());
-            pImpl->metadata.set_series("");
+            pImpl->metadata.SetTitle(std::filesystem::path(p).stem().string());
+            pImpl->metadata.SetSeries("");
             pImpl->open = true;
             CbjLog::Info("pdf", "opened PDF with MuPDF: " + p);
             return true;
