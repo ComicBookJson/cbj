@@ -184,14 +184,62 @@ jobs:
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v6
 
+      - name: Install SWIG
+        shell: bash
+        run: |
+          if command -v swig >/dev/null 2>&1; then
+            swig -version
+          elif [ "${{ matrix.platform }}" = "Windows" ]; then
+            choco install swig -y --no-progress
+          elif [ "${{ matrix.platform }}" = "iOS" ] || [ "${{ matrix.platform }}" = "MacCatalyst" ]; then
+            brew install swig
+          else
+            sudo apt-get update
+            sudo apt-get install -y swig
+          fi
+          swig -version
+
+      - name: Generate C# SWIG bindings
+        shell: bash
+        run: |
+          mkdir -p build/swig/csharp
+          swig -c++ -csharp \
+            -namespace ComicBookJson.Cbj \
+            -dllimport cbz \
+            -outdir build/swig/csharp \
+            -o build/swig/csharp/cbj_wrap.cxx \
+            swig/cbj.i
+          test -s build/swig/csharp/cbj_wrap.cxx
+          test -n "$(find build/swig/csharp -name '*.cs' -print -quit)"
+
+      - name: Generate Java SWIG bindings
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          mkdir -p build/swig/java/src/com/comicbookjson/cbj
+          mkdir -p build/swig/java/jni
+          swig -c++ -java \
+            -package com.comicbookjson.cbj \
+            -outdir build/swig/java/src/com/comicbookjson/cbj \
+            -o build/swig/java/jni/cbj_wrap.cxx \
+            swig/cbj.i
+          test -s build/swig/java/jni/cbj_wrap.cxx
+          test -n "$(find build/swig/java/src -name '*.java' -print -quit)"
+
       - name: Configure
         shell: bash
         run: |
+          if [ "${{ matrix.platform }}" = "Android" ]; then
+            SWIG_CMAKE_EXTRA="-DCBJ_JAVA_SWIG_WRAPPER=${{ github.workspace }}/build/swig/java/jni/cbj_wrap.cxx"
+          else
+            SWIG_CMAKE_EXTRA="-DCBJ_CSHARP_SWIG_WRAPPER=${{ github.workspace }}/build/swig/csharp/cbj_wrap.cxx"
+          fi
           cmake -S . -B build \
             -G "${{ matrix.generator }}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_STANDARD=17 \
-            ${{ matrix.cmake_extra }}
+            ${{ matrix.cmake_extra }} \
+            $SWIG_CMAKE_EXTRA
 
       - name: Build complete library
         run: cmake --build build --config Release --parallel
@@ -237,3 +285,138 @@ jobs:
           name: cbjzcore-${{ matrix.triplet }}
           path: cbjzcore-${{ matrix.triplet }}.tar.gz
           if-no-files-found: error
+
+      - name: Upload C# SWIG bindings
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-csharp-bindings-${{ matrix.triplet }}
+          path: build/swig/csharp/*.cs
+          if-no-files-found: error
+
+      - name: Prepare Android native AAR inputs
+        if: matrix.platform == 'Android'
+        shell: bash
+        run: |
+          mkdir -p "build/android-aar-native/lib/${{ matrix.android_abi }}"
+          cp "build/core/libcbz.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libcbz.so"
+          cp "build/android-runtime/lib/${{ matrix.android_abi }}/libc++_shared.so" "build/android-aar-native/lib/${{ matrix.android_abi }}/libc++_shared.so"
+
+      - name: Upload Java SWIG bindings
+        if: matrix.platform == 'Android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-java-bindings-${{ matrix.triplet }}
+          path: |
+            build/swig/java/src
+            build/swig/java/jni
+          if-no-files-found: error
+
+      - name: Upload Android native AAR inputs
+        if: matrix.platform == 'Android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cbj-android-native-${{ matrix.android_abi }}
+          path: build/android-aar-native
+          if-no-files-found: error
+
+  sync-csharp-bindings:
+    name: Sync C# SWIG bindings
+    needs: build
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: cbj-bindings-sync-${{ github.event.pull_request.head.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download generated C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-windows-x64
+          path: swig/maui/CbjMaui/Generated
+
+      - name: Commit C# bindings when changed
+        shell: bash
+        run: |
+          git add swig/maui/CbjMaui/Generated
+          if git diff --cached --quiet -- swig/maui/CbjMaui/Generated; then
+            echo "No generated C# binding changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: synchronize generated C# SWIG bindings"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
+  sync-java-bindings:
+    name: Sync Java SWIG bindings and AAR
+    needs: build
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: cbj-bindings-sync-${{ github.event.pull_request.head.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download generated Java bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-java-bindings-android-arm64-v8a
+          path: swig/java/CbjAndroid/src/main
+
+      - name: Download Android native libraries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cbj-android-native-*
+          path: swig/java/CbjAndroid/src/main/jniLibs
+          merge-multiple: true
+
+      - name: Generate AAR
+        working-directory: swig/java/CbjAndroid
+        shell: bash
+        run: |
+          gradle --version
+          gradle --no-daemon assembleRelease
+          test -f build/outputs/aar/CbjAndroid-release.aar
+          cp build/outputs/aar/CbjAndroid-release.aar CbjAndroid.aar
+
+      - name: Commit Java bindings and Gradle project when changed
+        shell: bash
+        run: |
+          git add swig/java/CbjAndroid
+          if git diff --cached --quiet -- swig/java/CbjAndroid; then
+            echo "No generated Java binding or project changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: synchronize generated Java SWIG bindings"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
