@@ -306,9 +306,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cbj-java-bindings-${{ matrix.triplet }}
-          path: |
-            build/swig/java/src
-            build/swig/java/jni
+          path: build/swig/java/src
           if-no-files-found: error
 
       - name: Upload Android native AAR inputs
@@ -316,7 +314,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cbj-android-native-${{ matrix.android_abi }}
-          path: build/android-aar-native
+          path: build/android-aar-native/lib
           if-no-files-found: error
 
   sync-csharp-bindings:
