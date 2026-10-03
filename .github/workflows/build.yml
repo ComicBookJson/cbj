@@ -346,23 +346,35 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download generated C# bindings for Android and Windows
+      - name: Download Android C# bindings
         uses: actions/download-artifact@v4
         with:
-          name: cbj-csharp-bindings-windows-x64
-          path: swig/maui/CbjMaui/Generated/Native
+          name: cbj-csharp-bindings-android-arm64-v8a
+          path: swig/maui/CbjMaui/Platforms/Android
 
-      - name: Download generated C# bindings for iOS and Mac Catalyst
+      - name: Download iOS C# bindings
         uses: actions/download-artifact@v4
         with:
           name: cbj-csharp-bindings-ios-arm64
-          path: swig/maui/CbjMaui/Generated/Internal
+          path: swig/maui/CbjMaui/Platforms/iOS
+
+      - name: Download Mac Catalyst C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-maccatalyst-arm64
+          path: swig/maui/CbjMaui/Platforms/MacCatalyst
+
+      - name: Download Windows C# bindings
+        uses: actions/download-artifact@v4
+        with:
+          name: cbj-csharp-bindings-windows-x64
+          path: swig/maui/CbjMaui/Platforms/Windows
 
       - name: Commit C# bindings when changed
         shell: bash
         run: |
-          git add swig/maui/CbjMaui/Generated
-          if git diff --cached --quiet -- swig/maui/CbjMaui/Generated; then
+          git add swig/maui/CbjMaui/Platforms/Android swig/maui/CbjMaui/Platforms/iOS swig/maui/CbjMaui/Platforms/MacCatalyst swig/maui/CbjMaui/Platforms/Windows
+          if git diff --cached --quiet -- swig/maui/CbjMaui/Platforms/Android swig/maui/CbjMaui/Platforms/iOS swig/maui/CbjMaui/Platforms/MacCatalyst swig/maui/CbjMaui/Platforms/Windows; then
             echo "No generated C# binding changes."
             exit 0
           fi
