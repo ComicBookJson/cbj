@@ -6,6 +6,7 @@
 #include <mupdf/fitz/context.h>
 #include <mupdf/fitz/document.h>
 #include <mupdf/fitz/util.h>
+#include <mupdf/fitz/color.h>
 #include <mupdf/fitz/pixmap.h>
 #include <miniz.h>
 #include <fstream>
