@@ -50,10 +50,5 @@ FetchContent_Declare(pdfium URL ${CBJ_PDFIUM_URL})
 FetchContent_MakeAvailable(pdfium)
 
 target_include_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/include)
-find_library(PDFIUM_LIBRARY
-    NAMES pdfium pdfium.dll.lib
-    PATHS ${pdfium_SOURCE_DIR}/lib
-    NO_DEFAULT_PATH
-    REQUIRED
-)
-target_link_libraries(CbjzCore PRIVATE ${PDFIUM_LIBRARY})
+target_link_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/lib)
+target_link_libraries(CbjzCore PRIVATE pdfium)
