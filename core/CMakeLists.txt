@@ -26,6 +26,15 @@ target_include_directories(CbjzCore PUBLIC
 target_include_directories(CbjzCore PRIVATE vendor/json vendor/miniz)
 target_link_libraries(CbjzCore PRIVATE unarr)
 
+# Android NDK r27 needs explicit ELF alignment for 16 KB page-size devices.
+# Keep both page-size linker values aligned as recommended by Android.
+if(ANDROID)
+    target_link_options(CbjzCore PRIVATE
+        "-Wl,-z,max-page-size=16384"
+        "-Wl,-z,common-page-size=16384"
+    )
+endif()
+
 # PDFium is supplied as a prebuilt binary for the exact target platform.
 # CI sets CBJ_PDFIUM_URL; keep a host fallback for local builds.
 if(NOT DEFINED CBJ_PDFIUM_URL OR CBJ_PDFIUM_URL STREQUAL "")
