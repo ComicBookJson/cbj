@@ -1,125 +1,94 @@
 #include "CbjJsonStream.hpp"
 #include "CbjLog.hpp"
-#include "StringImageHelper.hpp"
 #include "rapidjson/reader.h"
 #include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/document.h"
-#include "miniz.h"
+#include "rapidjson/stream.h"
 #include <fstream>
-#include <filesystem>
-#include <cstdio>
-#include <stdexcept>
-#include <vector>
+#include <string>
 
 namespace cbj {
 namespace {
-struct Handler : rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Handler> {
-    std::vector<std::streamoff>* offsets;
-    std::string* version;
-    Metadata* metadata;
-    int depth=0; bool inPages=false, inPage=false; std::string key;
-    std::string currentObject; bool capturePage=false;
-    std::string scalar;
-    Handler(std::vector<std::streamoff>& o,std::string& v,Metadata& m):offsets(&o),version(&v),metadata(&m){}
-    bool Key(const char* s, rapidjson::SizeType n, bool){key.assign(s,n); return true;}
+struct SaxHandler : rapidjson::BaseReaderHandler<rapidjson::UTF8<>, SaxHandler> {
+    std::vector<std::streamoff>& pageNumbers; std::string& version; Metadata& metadata;
+    int depth=0, pageOrdinal=-1, selected=-1; bool pages=false, page=false, metadataObject=false;
+    std::string key; Page selectedPage; bool pageIndexSeen=false, base64Seen=false;
+    explicit SaxHandler(std::vector<std::streamoff>& p,std::string& v,Metadata&m):pageNumbers(p),version(v),metadata(m){}
+    bool Key(const char*s,rapidjson::SizeType n,bool){key.assign(s,n);return true;}
     bool StartObject(){
-        if(depth==1 && key=="metadata") capturePage=false;
-        if(depth==1 && key=="pages") inPages=true;
-        if(inPages && depth==2){ inPage=true; currentObject="{"; }
+        if(depth==1 && key=="metadata") metadataObject=true;
+        if(pages && depth==2){ page=true; ++pageOrdinal; pageNumbers.push_back(pageOrdinal); pageIndexSeen=base64Seen=false; }
         ++depth; return true;
     }
     bool EndObject(rapidjson::SizeType){
         --depth;
-        if(inPage && depth==2){ inPage=false; currentObject.clear(); offsets->push_back(0); }
+        if(page && pages && depth==2){ page=false; }
+        if(metadataObject && depth==1) metadataObject=false;
         return true;
     }
-    bool StartArray(){
-        if(depth==1 && key=="pages") inPages=true;
-        ++depth; return true;
-    }
-    bool EndArray(rapidjson::SizeType){--depth; if(depth==1) inPages=false; return true;}
-    bool String(const char* s, rapidjson::SizeType n, bool){ 
-        if(depth==1 && key=="version") version->assign(s,n);
-        return true;
-    }
-    bool Int(int){return true;} bool Uint(unsigned){return true;}
-    bool Int64(int64_t){return true;} bool Uint64(uint64_t){return true;}
-    bool Double(double){return true;} bool Bool(bool){return true;} bool Null(){return true;}
-};
-
-class PageHandler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, PageHandler> {
-public:
-    Page page; std::string key; int depth=0; bool inTags=false;
-    bool Key(const char*s,rapidjson::SizeType n,bool){key.assign(s,n);return true;}
-    bool StartObject(){++depth; return true;}
-    bool EndObject(rapidjson::SizeType){--depth;return true;}
-    bool StartArray(){if(key=="pageTags")inTags=true;return true;}
-    bool EndArray(rapidjson::SizeType){inTags=false;return true;}
+    bool StartArray(){if(depth==1 && key=="pages")pages=true; ++depth; return true;}
+    bool EndArray(rapidjson::SizeType){--depth; if(depth==1)pages=false; return true;}
     bool String(const char*s,rapidjson::SizeType n,bool){
-        std::string v(s,n);
-        if(key=="pageType") page.SetPageType(v);
-        else if(key=="summary") page.SetSummary(v);
-        else if(key=="base64Image") page.SetBase64Image(v);
-        else if(inTags && key=="tagId"){}
+        if(depth==1 && key=="version") version.assign(s,n);
+        if(metadataObject){
+            std::string v(s,n);
+            if(key=="title")metadata.SetTitle(v); else if(key=="series")metadata.SetSeries(v);
+            else if(key=="issue")metadata.SetIssue(v); else if(key=="publisher")metadata.SetPublisher(v);
+            else if(key=="publicationDate")metadata.SetPublicationDate(v); else if(key=="summary")metadata.SetSummary(v);
+            else if(key=="language")metadata.SetLanguage(v);
+        }
+        if(page && pageOrdinal==selected){
+            if(key=="pageType")selectedPage.SetPageType(std::string(s,n));
+            else if(key=="summary")selectedPage.SetSummary(std::string(s,n));
+            else if(key=="base64Image"){selectedPage.SetBase64Image(std::string(s,n));base64Seen=true;}
+        }
         return true;
     }
-    bool Int(int v){if(key=="pageIndex")page.SetPageIndex(v);return true;}
-    bool Uint(unsigned v){if(key=="pageIndex")page.SetPageIndex((int)v);return true;}
-    bool Int64(int64_t v){if(key=="pageIndex")page.SetPageIndex((int)v);return true;}
-    bool Uint64(uint64_t v){if(key=="pageIndex")page.SetPageIndex((int)v);return true;}
+    bool Int(int v){if(page&&pageOrdinal==selected&&key=="pageIndex"){selectedPage.SetPageIndex(v);pageIndexSeen=true;}return true;}
+    bool Uint(unsigned v){return Int((int)v);} bool Int64(int64_t v){return Int((int)v);} bool Uint64(uint64_t v){return Int((int)v);}
     bool Double(double){return true;} bool Bool(bool){return true;} bool Null(){return true;}
 };
 
-bool parse(const std::string& path, rapidjson::Reader& reader, Handler& h){
-    std::ifstream f(path,std::ios::binary); if(!f) return false;
+bool run(const std::string&path,SaxHandler&h){
+    std::ifstream f(path,std::ios::binary); if(!f)return false;
     char buffer[64*1024]; rapidjson::FileReadStream is(f,buffer,sizeof(buffer));
-    return !reader.Parse(is,h).IsError();
+    rapidjson::Reader r; return !r.Parse(is,h).IsError();
 }
-bool validPage(const Page&p){return p.GetPageIndex()>=0 && !p.GetBase64Image().empty();}
+struct Validator : rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Validator>{
+    int depth=0; bool root=false, version=false, metadata=false, pages=false, page=false;
+    int pageNo=-1; bool pageIndex=false, base64=false; bool valid=true; std::string key;
+    bool Key(const char*s,rapidjson::SizeType n,bool){key.assign(s,n);if(depth==1){version|=key=="version";metadata|=key=="metadata";pages|=key=="pages";}return true;}
+    bool StartObject(){root|=depth==0;if(pages&&depth==2){page=true;++pageNo;pageIndex=base64=false;}++depth;return true;}
+    bool EndObject(rapidjson::SizeType){--depth;if(page&&pages&&depth==2){valid&=pageIndex&&base64;page=false;}return true;}
+    bool StartArray(){++depth;return true;} bool EndArray(rapidjson::SizeType){--depth;return true;}
+    bool String(const char*s,rapidjson::SizeType n,bool){if(page&&key=="base64Image")base64=n>0;return true;}
+    bool Int(int){if(page&&key=="pageIndex")pageIndex=true;return true;} bool Uint(unsigned){return Int(0);}
+    bool Int64(int64_t){return Int(0);} bool Uint64(uint64_t){return Int(0);}
+    bool Double(double){return true;} bool Bool(bool){return true;} bool Null(){return true;}
+};
+void writeString(rapidjson::Writer<rapidjson::OStreamWrapper>&w,const char*k,const std::string&v){w.Key(k);w.String(v.c_str(),(rapidjson::SizeType)v.size());}
 }
-bool ValidateAndIndexCbjJson(const std::string& path,std::vector<std::streamoff>& offsets,std::string& version,Metadata& metadata){
-    std::ifstream f(path,std::ios::binary); if(!f) return false;
-    rapidjson::Reader r; char b[64*1024]; rapidjson::FileReadStream is(f,b,sizeof(b));
-    rapidjson::Document root; // bounded validation of top-level shape, not a DOM of pages.
-    struct V : rapidjson::BaseReaderHandler<rapidjson::UTF8<>,V>{
-        int depth=0; bool root=false,version=false,metadata=false,pages=false;
-        bool Key(const char*s,rapidjson::SizeType n,bool){std::string k(s,n); if(depth==1){version|=k=="version";metadata|=k=="metadata";pages|=k=="pages";} return true;}
-        bool StartObject(){root|=depth==0;++depth;return true;} bool EndObject(rapidjson::SizeType){--depth;return true;}
-        bool StartArray(){if(depth==1)pages=true;++depth;return true;} bool EndArray(rapidjson::SizeType){--depth;return true;}
-        bool String(const char*,rapidjson::SizeType,bool){return true;} bool Int(int){return true;} bool Uint(unsigned){return true;}
-        bool Int64(int64_t){return true;} bool Uint64(uint64_t){return true;} bool Double(double){return true;} bool Bool(bool){return true;} bool Null(){return true;}
-    } vh;
-    if(r.Parse(is,vh).IsError() || !vh.root || !vh.version || !vh.metadata || !vh.pages) return false;
-    // Second SAX pass extracts lightweight metadata and page count without materializing the document.
-    Handler h(offsets,version,metadata); rapidjson::Reader r2;
-    if(!parse(path,r2,h)) return false;
-    CbjLog::Info("json","validated data.json with SAX/RapidJSON");
+bool ValidateAndIndexCbjJson(const std::string&path,std::vector<std::streamoff>&offsets,std::string&version,Metadata&metadata){
+    std::ifstream f(path,std::ios::binary);if(!f)return false;char b[64*1024];rapidjson::FileReadStream is(f,b,sizeof(b));rapidjson::Reader r;Validator v;
+    if(r.Parse(is,v).IsError()||!v.valid||!v.root||!v.version||!v.metadata||!v.pages||v.pageNo<0)return false;
+    offsets.clear();SaxHandler h(offsets,version,metadata);if(!run(path,h))return false;
+    CbjLog::Info("json","validated data.json using RapidJSON SAX streaming");
     return true;
 }
-bool ReadPageFromJson(const std::string& path,std::streamoff offset,Page&page){
-    std::ifstream f(path,std::ios::binary); if(!f)return false;
-    f.seekg(offset); std::string obj; char c; int d=0; bool str=false,esc=false;
-    while(f.get(c)){obj+=c;if(str){if(esc)esc=false;else if(c=='\\')esc=true;else if(c=='"')str=false;continue;}
-        if(c=='"'){str=true;continue;} if(c=='{')++d; else if(c=='}'&&--d==0)break;}
-    rapidjson::Reader r; PageHandler h; rapidjson::StringStream ss(obj.c_str()); if(r.Parse(ss,h).IsError()||!validPage(h.page))return false; page=h.page;return true;
+bool ReadPageFromJson(const std::string&path,std::streamoff ordinal,Page&page){
+    std::vector<std::streamoff> dummy;std::string version;Metadata metadata;SaxHandler h(dummy,version,metadata);h.selected=(int)ordinal;
+    if(!run(path,h)||h.selected<0||h.selected>=(int)dummy.size()||h.selectedPage.GetBase64Image().empty())return false;
+    page=h.selectedPage;return true;
 }
-bool WriteDocumentJson(const std::string& path,const Document& d){
-    std::ofstream f(path,std::ios::binary|std::ios::trunc); if(!f)return false;
-    rapidjson::OStreamWrapper os(f); rapidjson::Writer<rapidjson::OStreamWrapper> w(os);
-    w.StartObject(); w.Key("version"); w.String(d.GetVersion().c_str()); w.Key("metadata");
-    // Use a small DOM only for metadata; pages are emitted one at a time.
-    rapidjson::Document md; md.SetObject(); auto&a=md.GetAllocator();
-    md.AddMember("title",rapidjson::Value(d.GetMetadata().GetTitle().c_str(),a),a);
-    md.AddMember("series",rapidjson::Value(d.GetMetadata().GetSeries().c_str(),a),a);
-    w.RawValue(md.Accept(w),0,rapidjson::kObjectType);
-    w.Key("pages"); w.StartArray();
-    for(const auto&p:d.GetPages()){
-        w.StartObject(); w.Key("pageIndex");w.Int(p.GetPageIndex());
-        if(p.GetPageType()){w.Key("pageType");w.String(p.GetPageType()->c_str());}
-        if(p.GetSummary()){w.Key("summary");w.String(p.GetSummary()->c_str());}
-        w.Key("base64Image");w.String(p.GetBase64Image().c_str());w.EndObject();
-    }
-    w.EndArray();w.EndObject();return true;
+bool WriteDocumentJson(const std::string&path,const Document&d){
+    std::ofstream f(path,std::ios::binary|std::ios::trunc);if(!f)return false;rapidjson::OStreamWrapper os(f);rapidjson::Writer<rapidjson::OStreamWrapper>w(os);
+    w.StartObject();writeString(w,"version",d.GetVersion());w.Key("metadata");w.StartObject();const auto&m=d.GetMetadata();
+    writeString(w,"title",m.GetTitle());writeString(w,"series",m.GetSeries());
+    if(m.GetIssue())writeString(w,"issue",*m.GetIssue());if(m.GetVolume()){w.Key("volume");w.Int(*m.GetVolume());}
+    if(m.GetPublisher())writeString(w,"publisher",*m.GetPublisher());if(m.GetPublicationDate())writeString(w,"publicationDate",*m.GetPublicationDate());
+    if(m.GetSummary())writeString(w,"summary",*m.GetSummary());if(m.GetLanguage())writeString(w,"language",*m.GetLanguage());
+    if(m.GetGenres()){w.Key("genres");w.StartArray();for(auto&x:*m.GetGenres())w.String(x.c_str());w.EndArray();}
+    w.EndObject();w.Key("pages");w.StartArray();for(const auto&p:d.GetPages()){w.StartObject();w.Key("pageIndex");w.Int(p.GetPageIndex());
+        if(p.GetPageType())writeString(w,"pageType",*p.GetPageType());if(p.GetSummary())writeString(w,"summary",*p.GetSummary());
+        writeString(w,"base64Image",p.GetBase64Image());w.EndObject();}w.EndArray();w.EndObject();return true;
 }
 }
