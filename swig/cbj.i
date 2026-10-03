@@ -1,9 +1,30 @@
 %module cbj
+
 %{
 #include "Cbj.hpp"
 #include "CbjBuilder.hpp"
 #include "StringImageHelper.hpp"
 %}
+
+/*
+ * CbjzSchema.hpp is a public C++ model, but its JSON serialization helpers
+ * are implementation details and must not become language bindings.
+ * In particular, exposing nlohmann::json causes SWIG to emit wrappers using
+ * an unqualified "json" type which is only an alias inside namespace cbjz.
+ */
+%ignore cbjz::get_untyped;
+%ignore cbjz::get_heap_optional;
+%ignore cbjz::get_stack_optional;
+%ignore cbjz::CheckConstraint;
+%ignore cbjz::from_json;
+%ignore cbjz::to_json;
+%ignore cbjz::ClassMemberConstraints;
+%ignore cbjz::ClassMemberConstraintException;
+%ignore cbjz::ValueTooLowException;
+%ignore cbjz::ValueTooHighException;
+%ignore cbjz::ValueTooShortException;
+%ignore cbjz::ValueTooLongException;
+%ignore cbjz::InvalidPatternException;
 
 %pragma(java) jniclasscode=%{
   static {
