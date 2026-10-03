@@ -45,7 +45,7 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
     GIT_SUBMODULES_RECURSE TRUE
 )
-FetchContent_Populate(mupdf)
+FetchContent_MakeAvailable(mupdf)
 
 set(MUPDF_BUILD_DIR "${mupdf_BINARY_DIR}/build/release")
 if(UNIX OR APPLE)
