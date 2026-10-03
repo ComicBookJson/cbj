@@ -50,5 +50,12 @@ FetchContent_Declare(pdfium URL ${CBJ_PDFIUM_URL})
 FetchContent_MakeAvailable(pdfium)
 
 target_include_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/include)
-target_link_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/lib)
-target_link_libraries(CbjzCore PRIVATE pdfium)
+
+if(WIN32)
+    # bblanchon's Windows package uses pdfium.dll.lib as the import
+    # library for the shipped pdfium.dll (not pdfium.lib).
+    target_link_libraries(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/lib/pdfium.dll.lib)
+else()
+    target_link_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/lib)
+    target_link_libraries(CbjzCore PRIVATE pdfium)
+endif()
