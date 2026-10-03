@@ -4,6 +4,7 @@
 #include "Cbj.hpp"
 #include "CbjBuilder.hpp"
 #include "StringImageHelper.hpp"
+#include "CbjLog.hpp"
 %}
 
 /*
@@ -38,3 +39,4 @@
 %include "../core/include/Cbj.hpp"
 %include "../core/include/CbjBuilder.hpp"
 %include "../core/include/StringImageHelper.hpp"
+%include "../core/include/CbjLog.hpp"
