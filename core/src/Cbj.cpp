@@ -564,7 +564,19 @@ namespace cbj
             }
 
             if (options.mode == DoublePageMode::Explicit)
+            {
                 detectedDoublePages.assign(selected.begin(), selected.end());
+            }
+            else
+            {
+                for (int index : metadataPages)
+                    if (index >= 0 && index < int(entries.size()))
+                        selected.insert(index);
+
+                for (int index : selected)
+                    if (std::find(detectedDoublePages.begin(), detectedDoublePages.end(), index) == detectedDoublePages.end())
+                        detectedDoublePages.push_back(index);
+            }
 
             std::sort(detectedDoublePages.begin(), detectedDoublePages.end());
             logicalPages.clear();
