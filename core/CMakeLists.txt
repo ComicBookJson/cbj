@@ -15,30 +15,33 @@ if(DEFINED CBJ_JAVA_SWIG_WRAPPER AND EXISTS "${CBJ_JAVA_SWIG_WRAPPER}")
 endif()
 
 if(APPLE)
-    add_library(CbjzCore STATIC ${CORE_SOURCES})
+    add_library(CbjCore STATIC ${CORE_SOURCES})
 else()
-    add_library(CbjzCore SHARED ${CORE_SOURCES})
+    add_library(CbjCore SHARED ${CORE_SOURCES})
 endif()
 
-set_target_properties(CbjzCore PROPERTIES OUTPUT_NAME cbz)
+set_target_properties(CbjCore PROPERTIES OUTPUT_NAME cbz)
 if(WIN32)
-    set_target_properties(CbjzCore PROPERTIES PREFIX "")
+    set_target_properties(CbjCore PROPERTIES PREFIX "")
 endif()
 if(MSVC)
-    target_compile_options(CbjzCore PRIVATE /EHsc)
+    target_compile_options(CbjCore PRIVATE /EHsc)
 endif()
 
-target_include_directories(CbjzCore PUBLIC
+target_include_directories(CbjCore PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_include_directories(CbjzCore PRIVATE vendor/rapidjson vendor/logfault vendor/miniz)
-target_link_libraries(CbjzCore PRIVATE unarr)
+target_include_directories(CbjCore PRIVATE vendor/rapidjson vendor/logfault vendor/miniz)
+target_link_libraries(CbjCore PRIVATE unarr)
 
-# RapidJSON and Logfault are vendored under core/vendor.\ninclude(FetchContent)\n\nFetchContent_Declare(
+# RapidJSON and Logfault are vendored under core/vendor.
+include(FetchContent)
+
+FetchContent_Declare(
     mupdf
     GIT_REPOSITORY https://github.com/ArtifexSoftware/mupdf.git
-    GIT_TAG master
+    GIT_TAG 1.28.5
     GIT_SHALLOW TRUE
     GIT_SUBMODULES_RECURSE TRUE
 )
@@ -50,9 +53,9 @@ if(UNIX OR APPLE)
         COMMAND make -C "${mupdf_SOURCE_DIR}" build=release HAVE_X11=no HAVE_GLFW=no
         BYPRODUCTS "${MUPDF_BUILD_DIR}/libmupdf.a" "${MUPDF_BUILD_DIR}/libmupdf-third.a"
         VERBATIM)
-    add_dependencies(CbjzCore cbj_mupdf_build)
-    target_include_directories(CbjzCore PRIVATE "${mupdf_SOURCE_DIR}/include")
-    target_link_libraries(CbjzCore PRIVATE
+    add_dependencies(CbjCore cbj_mupdf_build)
+    target_include_directories(CbjCore PRIVATE "${mupdf_SOURCE_DIR}/include")
+    target_link_libraries(CbjCore PRIVATE
         "${MUPDF_BUILD_DIR}/libmupdf.a"
         "${MUPDF_BUILD_DIR}/libmupdf-third.a"
     )
@@ -61,7 +64,7 @@ else()
 endif()
 
 if(ANDROID)
-    target_link_options(CbjzCore PRIVATE
+    target_link_options(CbjCore PRIVATE
         "-Wl,-z,max-page-size=16384"
         "-Wl,-z,common-page-size=16384"
     )
