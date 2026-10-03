@@ -11,6 +11,11 @@ else()
     add_library(CbjzCore SHARED ${CORE_SOURCES})
 endif()
 
+set_target_properties(CbjzCore PROPERTIES OUTPUT_NAME cbz PREFIX "")
+if(MSVC)
+    target_compile_options(CbjzCore PRIVATE /EHsc)
+endif()
+
 target_include_directories(CbjzCore PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -42,5 +47,10 @@ FetchContent_Declare(pdfium URL ${CBJ_PDFIUM_URL})
 FetchContent_MakeAvailable(pdfium)
 
 target_include_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/include)
-target_link_directories(CbjzCore PRIVATE ${pdfium_SOURCE_DIR}/lib)
-target_link_libraries(CbjzCore PRIVATE pdfium)
+find_library(PDFIUM_LIBRARY
+    NAMES pdfium pdfium.dll.lib
+    PATHS ${pdfium_SOURCE_DIR}/lib
+    NO_DEFAULT_PATH
+    REQUIRED
+)
+target_link_libraries(CbjzCore PRIVATE ${PDFIUM_LIBRARY})
