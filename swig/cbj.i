@@ -1,8 +1,8 @@
 %module cbj
 %{
-#include "../core/include/Cbj.hpp"
-#include "../core/include/CbjBuilder.hpp"
-#include "../core/include/StringImageHelper.hpp"
+#include "Cbj.hpp"
+#include "CbjBuilder.hpp"
+#include "StringImageHelper.hpp"
 %}
 
 %pragma(java) jniclasscode=%{
