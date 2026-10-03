@@ -1,0 +1,18 @@
+plugins {
+    id "com.android.library"
+}
+
+android {
+    namespace "com.comicbookjson.cbj"
+    compileSdk 37
+
+    defaultConfig {
+        minSdk 24
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
