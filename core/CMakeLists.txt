@@ -4,7 +4,12 @@ set(CORE_SOURCES
     src/StringImageHelper.cpp
     vendor/miniz/miniz.c
 )
-add_library(CbjzCore SHARED ${CORE_SOURCES})
+if(APPLE)
+    # Apple platforms must consume a static archive in App Store applications.
+    add_library(CbjzCore STATIC ${CORE_SOURCES})
+else()
+    add_library(CbjzCore SHARED ${CORE_SOURCES})
+endif()
 
 target_include_directories(CbjzCore PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
