@@ -198,10 +198,6 @@ namespace cbj
         std::vector<Entry> entries;
         /** Logical pages exposed by the API. */
         std::vector<LogicalPageRef> logicalPages;
-        /** Unarr offset of an optional ComicInfo.xml metadata entry. */
-        long long metadataOffset = -1;
-        /** Uncompressed size of the optional ComicInfo.xml entry. */
-        size_t metadataSize = 0;
         /** CBJ JSON page ordinals. */
         std::vector<std::streamoff> pages;
         /** Decoded page cache. */
@@ -265,8 +261,6 @@ namespace cbj
             cache.clear();
             edited.clear();
             detectedDoublePages.clear();
-            metadataOffset = -1;
-            metadataSize = 0;
             metadata = Metadata();
             importOptions = DoublePageOptions();
             open = false;
@@ -360,64 +354,12 @@ namespace cbj
             return {width, height};
         }
 
-        /** Reads ComicInfo.xml and returns source image indices explicitly marked DoublePage. */
-        /** Reads ComicInfo.xml and returns source image indices explicitly marked DoublePage. */
-        std::unordered_set<int> readMetadataDoublePages()
-        {
-            std::unordered_set<int> result;
-            if (metadataOffset < 0)
-                return result;
-
-            try
-            {
-                Entry metadataEntry{"ComicInfo.xml", metadataOffset, metadataSize};
-                const std::string xml = extractEntry(metadataEntry);
-                static const std::regex pageExpression(R"(<Page\b[^>]*>)", std::regex::icase);
-                static const std::regex imageExpression(R"(\bImage\s*=\s*["'](\d+)["'])", std::regex::icase);
-                static const std::regex doubleExpression(R"(\bDoublePage\s*=\s*["'](true|1)["'])", std::regex::icase);
-
-                for (std::sregex_iterator i(xml.begin(), xml.end(), pageExpression), end; i != end; ++i)
-                {
-                    const std::string tag = i->str();
-                    std::smatch imageMatch;
-                    std::smatch doubleMatch;
-                    if (std::regex_search(tag, imageMatch, imageExpression) &&
-                        std::regex_search(tag, doubleMatch, doubleExpression))
-                    {
-                        try
-                        {
-                            result.insert(std::stoi(imageMatch[1].str()));
-                        }
-                        catch (...)
-                        {
-                            CbjLog::Warn("double-page", "invalid ComicInfo Image index in metadata");
-                        }
-                    }
-                }
-                if (!result.empty())
-                    CbjLog::Info("double-page", "ComicInfo.xml supplied " +
-                        std::to_string(result.size()) + " double-page hint(s)");
-            }
-            catch (...)
-            {
-                CbjLog::Warn("double-page", "exception reading ComicInfo.xml: " + currentExceptionMessage());
-            }
-            return result;
-        }
-
-        /** Scores an image using dimensions, statistics, filename sequence and metadata. */
+        /** Scores an image using dimensions, statistics, filename sequence and population statistics. */
         Detection detectEntry(int index, const std::vector<double> &medianRatios,
-                              double medianWidth, double medianHeight,
-                              const std::unordered_set<int> &metadataPages)
+                              double medianWidth, double medianHeight)
         {
             const Entry &entry = entries[index];
             Detection detection;
-            if (metadataPages.count(index))
-            {
-                detection.score = 1.0;
-                detection.reasons.push_back("ComicInfo.xml marks the image as DoublePage");
-            }
-
             const double ratio = entry.height > 0 ? double(entry.width) / double(entry.height) : 0.0;
             const double medianRatio = medianRatios.empty() ? 0.0 : median(medianRatios);
 
@@ -515,7 +457,6 @@ namespace cbj
 
             const double medianWidth = median(widths);
             const double medianHeight = median(heights);
-            const std::unordered_set<int> metadataPages = readMetadataDoublePages();
             std::unordered_set<int> selected;
 
             for (int index : options.pageIndices)
@@ -543,7 +484,7 @@ namespace cbj
                 const double populationRatio = median(ratios);
                 for (int i = 0; i < int(entries.size()); ++i)
                 {
-                    Detection detection = detectEntry(i, {populationRatio}, medianWidth, medianHeight, metadataPages);
+                    Detection detection = detectEntry(i, {populationRatio}, medianWidth, medianHeight);
                     if (detection.score >= 0.55)
                     {
                         selected.insert(i);
@@ -569,10 +510,6 @@ namespace cbj
             }
             else
             {
-                for (int index : metadataPages)
-                    if (index >= 0 && index < int(entries.size()))
-                        selected.insert(index);
-
                 for (int index : selected)
                     if (std::find(detectedDoublePages.begin(), detectedDoublePages.end(), index) == detectedDoublePages.end())
                         detectedDoublePages.push_back(index);
@@ -626,13 +563,6 @@ namespace cbj
                 if (name)
                 {
                     const std::string entryName = name;
-                    const std::string baseName =
-                        lower(std::filesystem::path(entryName).filename().string());
-                    if (baseName == "comicinfo.xml")
-                    {
-                        metadataOffset = (long long)ar_entry_get_offset(archive);
-                        metadataSize = ar_entry_get_size(archive);
-                    }
                     if (isImage(entryName))
                         entries.push_back({entryName, (long long)ar_entry_get_offset(archive), ar_entry_get_size(archive)});
                 }
@@ -1198,60 +1128,3 @@ namespace cbj
     void Cbj::SetMetadata(const Metadata &metadata)
     {
         pImpl->metadata = metadata;
-        CbjLog::Info("metadata", "document metadata updated");
-    }
-
-    /** Replaces one logical page in the editable document. */
-    void Cbj::UpdatePage(int index, const Page &page)
-    {
-        try
-        {
-            if (index < 0 || index >= pImpl->count())
-                throw std::out_of_range("Page index out of range");
-            pImpl->edited[index] = page;
-            pImpl->cache[index] = page;
-            CbjLog::Info("page", "updated logical page " + std::to_string(index));
-        }
-        catch (...)
-        {
-            CbjLog::Error("page", "exception updating page " + std::to_string(index) +
-                ": " + currentExceptionMessage());
-            throw;
-        }
-    }
-
-    /** Returns the logical page count after normalization. */
-    int Cbj::GetTotalPages() const
-    {
-        return pImpl->count();
-    }
-
-    /** Returns the current CBJ protocol version. */
-    std::string Cbj::GetVersion() const
-    {
-        return pImpl->version;
-    }
-
-    /** Returns whether a document is open. */
-    bool Cbj::IsOpen() const
-    {
-        return pImpl->open;
-    }
-
-    /** Returns zero-based source indices detected or explicitly selected as spreads. */
-    std::vector<int> Cbj::GetDetectedDoublePageIndices() const
-    {
-        return pImpl->detectedDoublePages;
-    }
-
-    /** Returns source image names detected or explicitly selected as spreads. */
-    std::vector<std::string> Cbj::GetDetectedDoublePageNames() const
-    {
-        std::vector<std::string> result;
-        result.reserve(pImpl->detectedDoublePages.size());
-        for (int index : pImpl->detectedDoublePages)
-            if (index >= 0 && index < int(pImpl->entries.size()))
-                result.push_back(pImpl->entries[index].name);
-        return result;
-    }
-}
