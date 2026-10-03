@@ -29,4 +29,20 @@
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 	</ItemGroup>
 
+
+	<!-- SWIG generates two native-entry variants:
+	     cbz for Android/Windows shared libraries and __Internal for
+	     iOS/Mac Catalyst static libraries. -->
+	<ItemGroup>
+		<Compile Remove="Generated/**/*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' OR $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+		<Compile Include="Generated/Internal/**/*.cs" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'ios' AND $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'maccatalyst'">
+		<Compile Include="Generated/Native/**/*.cs" />
+	</ItemGroup>
+
 </Project>
