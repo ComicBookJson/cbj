@@ -193,6 +193,18 @@ jobs:
         shell: bash
         run: |
           cmake --install build --prefix "dist/${{ matrix.triplet }}" || true
+          if [ "${{ matrix.platform }}" = "Android" ]; then
+            NDK_LIB="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib"
+            case "${{ matrix.android_abi }}" in
+              arm64-v8a) CXX_SHARED="$NDK_LIB/aarch64-linux-android/libc++_shared.so" ;;
+              armeabi-v7a) CXX_SHARED="$NDK_LIB/arm-linux-androideabi/libc++_shared.so" ;;
+              x86) CXX_SHARED="$NDK_LIB/i686-linux-android/libc++_shared.so" ;;
+              x86_64) CXX_SHARED="$NDK_LIB/x86_64-linux-android/libc++_shared.so" ;;
+            esac
+            test -f "$CXX_SHARED"
+            mkdir -p "dist/${{ matrix.triplet }}/lib/${{ matrix.android_abi }}"
+            cp "$CXX_SHARED" "dist/${{ matrix.triplet }}/lib/${{ matrix.android_abi }}/libc++_shared.so"
+          fi
           tar -C build -czf "cbjzcore-${{ matrix.triplet }}.tar.gz" .
 
       - name: Upload build artifact
