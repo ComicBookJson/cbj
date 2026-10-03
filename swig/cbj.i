@@ -4,6 +4,13 @@
 #include "../core/include/CbjBuilder.hpp"
 #include "../core/include/StringImageHelper.hpp"
 %}
+
+%pragma(java) jniclasscode=%{
+  static {
+    System.loadLibrary("cbz");
+  }
+%}
+
 %include <std_string.i>
 %include <std_vector.i>
 %include "../core/include/CbjzSchema.hpp"
