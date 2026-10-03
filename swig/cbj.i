@@ -26,6 +26,7 @@
 %ignore cbjz::ValueTooShortException;
 %ignore cbjz::ValueTooLongException;
 %ignore cbjz::InvalidPatternException;
+%ignore cbj::CbjLog::SetCallback;
 
 %pragma(java) jniclasscode=%{
   static {
