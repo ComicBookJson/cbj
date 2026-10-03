@@ -42,12 +42,12 @@ target_link_libraries(CbjzCore PRIVATE unarr)
     GIT_SHALLOW TRUE
     GIT_SUBMODULES_RECURSE TRUE
 )
-FetchContent_MakeAvailable(mupdf)
+FetchContent_Populate(mupdf)
 
 set(MUPDF_BUILD_DIR "${mupdf_BINARY_DIR}/build/release")
 if(UNIX OR APPLE)
     add_custom_target(cbj_mupdf_build
-        COMMAND ${CMAKE_MAKE_PROGRAM} -C "${mupdf_SOURCE_DIR}" build=release HAVE_X11=no HAVE_GLFW=no
+        COMMAND make -C "${mupdf_SOURCE_DIR}" build=release HAVE_X11=no HAVE_GLFW=no
         BYPRODUCTS "${MUPDF_BUILD_DIR}/libmupdf.a" "${MUPDF_BUILD_DIR}/libmupdf-third.a"
         VERBATIM)
     add_dependencies(CbjzCore cbj_mupdf_build)
