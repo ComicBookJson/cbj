@@ -633,7 +633,7 @@ namespace cbj
                         metadataOffset = (long long)ar_entry_get_offset(archive);
                         metadataSize = ar_entry_get_size(archive);
                     }
-                    if (image(entryName))
+                    if (isImage(entryName))
                         entries.push_back({entryName, (long long)ar_entry_get_offset(archive), ar_entry_get_size(archive)});
                 }
             }
