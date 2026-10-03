@@ -10,7 +10,168 @@
 
 namespace ComicBookJson.Cbj {
 
-public class cbj {
+public class Cbj : global::System.IDisposable {
+  private global::System.Runtime.InteropServices.HandleRef swigCPtr;
+  protected bool swigCMemOwn;
+
+  internal Cbj(global::System.IntPtr cPtr, bool cMemoryOwn) {
+    swigCMemOwn = cMemoryOwn;
+    swigCPtr = new global::System.Runtime.InteropServices.HandleRef(this, cPtr);
+  }
+
+  internal static global::System.Runtime.InteropServices.HandleRef getCPtr(Cbj obj) {
+    return (obj == null) ? new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero) : obj.swigCPtr;
+  }
+
+  internal static global::System.Runtime.InteropServices.HandleRef swigRelease(Cbj obj) {
+    if (obj != null) {
+      if (!obj.swigCMemOwn)
+        throw new global::System.ApplicationException("Cannot release ownership as memory is not owned");
+      global::System.Runtime.InteropServices.HandleRef ptr = obj.swigCPtr;
+      obj.swigCMemOwn = false;
+      obj.Dispose();
+      return ptr;
+    } else {
+      return new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero);
+    }
+  }
+
+  ~Cbj() {
+    Dispose(false);
+  }
+
+  public void Dispose() {
+    Dispose(true);
+    global::System.GC.SuppressFinalize(this);
+  }
+
+  protected virtual void Dispose(bool disposing) {
+    lock(this) {
+      if (swigCPtr.Handle != global::System.IntPtr.Zero) {
+        if (swigCMemOwn) {
+          swigCMemOwn = false;
+          cbjPINVOKE.delete_Cbj(swigCPtr);
+        }
+        swigCPtr = new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero);
+      }
+    }
+  }
+
+  public Cbj() : this(cbjPINVOKE.new_Cbj(), true) {
+  }
+
+  public bool Open(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_Open(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool OpenCbjz(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_OpenCbjz(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool ImportFromCbz(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_ImportFromCbz(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool ImportFromCbr(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_ImportFromCbr(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool ImportFromCb7(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_ImportFromCb7(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool ImportFromCbt(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_ImportFromCbt(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool ImportFromPdf(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_ImportFromPdf(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public bool SaveAsCbjz(string arg0) {
+    bool ret = cbjPINVOKE.Cbj_SaveAsCbjz(swigCPtr, arg0);
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+    return ret;
+  }
+
+  public SWIGTYPE_p_std__vectorT_cbjz__PageElement_t GetPages(int startIndex, int count) {
+    SWIGTYPE_p_std__vectorT_cbjz__PageElement_t ret = new SWIGTYPE_p_std__vectorT_cbjz__PageElement_t(cbjPINVOKE.Cbj_GetPages(swigCPtr, startIndex, count), true);
+    return ret;
+  }
+
+  public SWIGTYPE_p_std__vectorT_cbjz__PageElement_t GetPagesForView(int currentIndex, Cbj.ViewMode arg1) {
+    SWIGTYPE_p_std__vectorT_cbjz__PageElement_t ret = new SWIGTYPE_p_std__vectorT_cbjz__PageElement_t(cbjPINVOKE.Cbj_GetPagesForView(swigCPtr, currentIndex, (int)arg1), true);
+    return ret;
+  }
+
+  public PageElement GetPage(int index) {
+    PageElement ret = new PageElement(cbjPINVOKE.Cbj_GetPage(swigCPtr, index), true);
+    return ret;
+  }
+
+  public void ClearCache() {
+    cbjPINVOKE.Cbj_ClearCache(swigCPtr);
+  }
+
+  public void SetCachePages(int arg0) {
+    cbjPINVOKE.Cbj_SetCachePages(swigCPtr, arg0);
+  }
+
+  public int GetCachePages() {
+    int ret = cbjPINVOKE.Cbj_GetCachePages(swigCPtr);
+    return ret;
+  }
+
+  public Metadata GetMetadata() {
+    Metadata ret = new Metadata(cbjPINVOKE.Cbj_GetMetadata(swigCPtr), true);
+    return ret;
+  }
+
+  public void SetMetadata(Metadata arg0) {
+    cbjPINVOKE.Cbj_SetMetadata(swigCPtr, Metadata.getCPtr(arg0));
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+  }
+
+  public void UpdatePage(int arg0, PageElement arg1) {
+    cbjPINVOKE.Cbj_UpdatePage(swigCPtr, arg0, PageElement.getCPtr(arg1));
+    if (cbjPINVOKE.SWIGPendingException.Pending) throw cbjPINVOKE.SWIGPendingException.Retrieve();
+  }
+
+  public int GetTotalPages() {
+    int ret = cbjPINVOKE.Cbj_GetTotalPages(swigCPtr);
+    return ret;
+  }
+
+  public string GetVersion() {
+    string ret = cbjPINVOKE.Cbj_GetVersion(swigCPtr);
+    return ret;
+  }
+
+  public bool IsOpen() {
+    bool ret = cbjPINVOKE.Cbj_IsOpen(swigCPtr);
+    return ret;
+  }
+
+  public enum ViewMode {
+    Single = 1,
+    Desktop = 2,
+    Mobile = 3
+  }
+
 }
 
 }

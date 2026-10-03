@@ -20,10 +20,12 @@ namespace cbjz
             long long offset;
             size_t size;
         };
+
         struct Loc
         {
             std::streamoff objectBegin, objectEnd, base64Begin, base64End;
         };
+
         bool image(const std::string &n)
         {
             auto p = n.find_last_of('.');
@@ -34,6 +36,7 @@ namespace cbjz
                            { return char(std::tolower((unsigned char)c)); });
             return e == "jpg" || e == "jpeg" || e == "png" || e == "webp" || e == "gif" || e == "bmp" || e == "avif";
         }
+        
         std::string mime(const std::string &n)
         {
             auto p = n.find_last_of('.');
@@ -52,6 +55,7 @@ namespace cbjz
                 return "image/avif";
             return "image/jpeg";
         }
+        
         void ws(std::istream &f)
         {
             char c;
@@ -61,6 +65,7 @@ namespace cbjz
             if (f)
                 f.unget();
         }
+        
         std::string jstr(std::istream &f)
         {
             char c;
@@ -87,6 +92,7 @@ namespace cbjz
             }
             throw std::runtime_error("Unterminated JSON string");
         }
+        
         void skipstr(std::istream &f)
         {
             char c;
@@ -109,10 +115,11 @@ namespace cbjz
             throw std::runtime_error("Unterminated JSON string");
         }
     }
+
     class Cbj::Impl
     {
     public:
-        std::string path, kind, version = "1.0";
+        std::string path = std::string::empty, kind = std::string::empty, version = "1.0";
         Metadata metadata;
         std::vector<Entry> entries;
         std::vector<Loc> pages;
@@ -326,11 +333,14 @@ namespace cbjz
                             ws(f);
                             if (!f.get(c) || c != ':')
                                 throw std::runtime_error("Bad base64Image");
+                                
                             ws(f);
                             if (!f.get(c) || c != '"')
                                 throw std::runtime_error("Bad base64Image value");
+                            
                             Loc l{objectBegin, -1, f.tellg(), 0};
                             skipstr(f);
+                            
                             l.base64End = f.tellg() - std::streamoff(1);
                             pages.push_back(l);
                         }
@@ -371,9 +381,12 @@ namespace cbjz
             auto e = edited.find(i);
             if (e != edited.end())
                 return e->second;
+            
             if (i < 0 || i >= int(pages.size()))
                 throw std::out_of_range("Page index out of range");
+            
             std::ifstream f(path, std::ios::binary);
+            
             if (pages[i].objectBegin >= 0 && pages[i].objectEnd > pages[i].objectBegin)
             {
                 f.seekg(pages[i].objectBegin);
@@ -381,9 +394,12 @@ namespace cbjz
                 f.read(obj.data(), obj.size());
                 return nlohmann::json::parse(obj).get<PageElement>();
             }
+            
             f.seekg(pages[i].base64Begin);
+            
             std::string b(size_t(pages[i].base64End - pages[i].base64Begin), '\0');
             f.read(b.data(), b.size());
+            
             PageElement p;
             p.set_page_index(i);
             p.set_page_type("Story");
@@ -395,9 +411,11 @@ namespace cbjz
         {
             if (!pdf || i < 0 || i >= FPDF_GetPageCount(pdf))
                 throw std::out_of_range("Page index out of range");
+        
             FPDF_PAGE pg = FPDF_LoadPage(pdf, i);
             if (!pg)
                 throw std::runtime_error("Cannot load PDF page");
+            
             int w = (std::max)(1, int(std::ceil(FPDF_GetPageWidthF(pg)))), h = (std::max)(1, int(std::ceil(FPDF_GetPageHeightF(pg))));
             FPDF_BITMAP bm = FPDFBitmap_Create(w, h, 4);
             if (!bm)
@@ -405,12 +423,15 @@ namespace cbjz
                 FPDF_ClosePage(pg);
                 throw std::runtime_error("Cannot create bitmap");
             }
+            
             FPDFBitmap_FillRect(bm, 0, 0, w, h, 0xffffffff);
             FPDF_RenderPageBitmap(bm, pg, 0, 0, w, h, 0, FPDF_ANNOT | FPDF_LCD_TEXT);
             int stride = FPDFBitmap_GetStride(bm);
+            
             std::string b((char *)FPDFBitmap_GetBuffer(bm), size_t(stride) * h);
             FPDFBitmap_Destroy(bm);
             FPDF_ClosePage(pg);
+            
             PageElement p;
             p.set_page_index(i);
             p.set_page_type(i ? "Story" : "FrontCover");
@@ -423,9 +444,11 @@ namespace cbjz
             auto e = edited.find(i);
             if (e != edited.end())
                 return e->second;
+
             auto c = cache.find(i);
             if (c != cache.end())
                 return c->second;
+            
             return cbjz ? cbjzPage(i) : kind == "pdf" ? pdfPage(i)
                                                       : archivePage(i);
         }
@@ -639,7 +662,9 @@ namespace cbjz
     }
     
     int Cbj::GetCachePages() const { return pImpl->radius; }
+    
     Metadata Cbj::GetMetadata() const { return pImpl->metadata; }
+    
     void Cbj::SetMetadata(const Metadata &m) { pImpl->metadata = m; }
     
     void Cbj::UpdatePage(int i, const PageElement &p)
@@ -651,6 +676,8 @@ namespace cbjz
     }
     
     int Cbj::GetTotalPages() const { return pImpl->count(); }
+ 
     std::string Cbj::GetVersion() const { return pImpl->version; }
+ 
     bool Cbj::IsOpen() const { return pImpl->open; }
 }

@@ -5,6 +5,7 @@
 namespace cbjz
 {
     static const char *A = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
     static int V(unsigned char c)
     {
         if (c >= 'A' && c <= 'Z')
@@ -19,6 +20,7 @@ namespace cbjz
             return 63;
         return -1;
     }
+
     std::string StringImageHelper::EncodeBase64(const std::string &b)
     {
         std::string o;
@@ -33,7 +35,12 @@ namespace cbjz
         }
         return o;
     }
-    std::string StringImageHelper::EncodeBase64(const std::vector<std::uint8_t> &b) { return EncodeBase64(std::string(reinterpret_cast<const char *>(b.data()), b.size())); }
+
+    std::string StringImageHelper::EncodeBase64(const std::vector<std::uint8_t> &b)
+    {
+        return EncodeBase64(std::string(reinterpret_cast<const char *>(b.data()), b.size()));
+    }
+
     std::string StringImageHelper::DecodeBase64(const std::string &in)
     {
         std::string s = in;
@@ -59,11 +66,13 @@ namespace cbjz
         }
         return o;
     }
+
     std::vector<std::uint8_t> StringImageHelper::DecodeBase64Bytes(const std::string &s)
     {
         auto b = DecodeBase64(s);
         return {b.begin(), b.end()};
     }
+
     std::string StringImageHelper::ReadFile(const std::string &p)
     {
         std::ifstream f(p, std::ios::binary);
@@ -71,6 +80,7 @@ namespace cbjz
             throw std::runtime_error("Cannot open file: " + p);
         return {std::istreambuf_iterator<char>(f), {}};
     }
+
     bool StringImageHelper::WriteFile(const std::string &p, const std::string &b)
     {
         std::ofstream f(p, std::ios::binary | std::ios::trunc);

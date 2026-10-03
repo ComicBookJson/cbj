@@ -3,12 +3,17 @@
 #include <fstream>
 namespace cbjz
 {
-    CbjBuilder::CbjBuilder() { document_.set_version("1.0"); }
+    CbjBuilder::CbjBuilder() 
+    { 
+        document_.set_version("1.0"); 
+    }
+
     CbjBuilder &CbjBuilder::SetVersion(const std::string &v)
     {
         document_.set_version(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::SetMetadata(const std::string &t, const std::string &s)
     {
         auto &m = document_.get_mutable_metadata();
@@ -16,31 +21,37 @@ namespace cbjz
         m.set_series(s);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::SetIssue(const std::string &v)
     {
         document_.get_mutable_metadata().set_issue(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::SetVolume(std::int64_t v)
     {
         document_.get_mutable_metadata().set_volume(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::SetPublisher(const std::string &v)
     {
         document_.get_mutable_metadata().set_publisher(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::SetLanguage(const std::string &v)
     {
         document_.get_mutable_metadata().set_language(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::SetSummary(const std::string &v)
     {
         document_.get_mutable_metadata().set_summary(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::AddGenre(const std::string &v)
     {
         auto &m = document_.get_mutable_metadata();
@@ -49,6 +60,7 @@ namespace cbjz
         m.get_mutable_genres()->push_back(v);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::AddCreator(const std::string &n, const std::string &r)
     {
         auto &m = document_.get_mutable_metadata();
@@ -60,6 +72,7 @@ namespace cbjz
         m.get_mutable_creators()->push_back(c);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::AddTag(const std::string &i, const std::string &n, Type t)
     {
         auto &m = document_.get_mutable_metadata();
@@ -72,6 +85,7 @@ namespace cbjz
         m.get_mutable_tags()->push_back(x);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::AddChapter(const std::string &t, std::int64_t i, const std::string &s)
     {
         auto &m = document_.get_mutable_metadata();
@@ -85,6 +99,7 @@ namespace cbjz
         m.get_mutable_chapters()->push_back(c);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::AddPageBase64(const std::string &b, const std::string &t, const std::string &s)
     {
         PageElement p;
@@ -97,8 +112,11 @@ namespace cbjz
         document_.get_mutable_pages().push_back(p);
         return *this;
     }
+    
     CbjBuilder &CbjBuilder::AddPageBytes(const std::string &b, const std::string &t, const std::string &s) { return AddPageBase64(StringImageHelper::EncodeBase64(b), t, s); }
+    
     CbjzV1Schema CbjBuilder::Build() const { return document_; }
+    
     bool CbjBuilder::Save(const std::string &p) const
     {
         std::ofstream f(p, std::ios::binary | std::ios::trunc);
