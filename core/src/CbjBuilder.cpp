@@ -160,4 +160,4 @@ namespace cbj
             fs::remove(json); fs::remove(archive); return false;
         }
     }
-}\n}\n
+}
