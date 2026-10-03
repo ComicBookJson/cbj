@@ -1,0 +1,16 @@
+MuPDF license notice
+
+MuPDF is Copyright (C) 2006-2026 Artifex Software, Inc.
+
+MuPDF is free software: it may be redistributed and/or modified under the
+terms of the GNU Affero General Public License as published by the Free
+Software Foundation, version 3 or any later version.
+
+MuPDF is distributed WITHOUT ANY WARRANTY; without even the implied warranty
+of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Alternative/commercial licensing terms are available from Artifex Software.
+
+The authoritative full license text is distributed with the MuPDF source
+tree as COPYING / AGPL-3.0. This file records the license provenance for the
+source dependency fetched from https://github.com/ArtifexSoftware/mupdf.
